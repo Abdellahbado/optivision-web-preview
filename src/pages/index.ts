@@ -1,0 +1,11 @@
+export { DashboardPage } from './DashboardPage';
+export { AccueilClientPage } from './AccueilClientPage';
+export { ClientsPage } from './ClientsPage';
+export { OrdonnancesPage } from './OrdonnancesPage';
+export { ProduitsPage } from './ProduitsPage';
+export { CommandesPage } from './CommandesPage';
+export { FacturesPage } from './FacturesPage';
+export { RapportsPage } from './RapportsPage';
+export { ParametresPage } from './ParametresPage';
+export { SauvegardePage } from './SauvegardePage';
+export { ListeVerresPage } from './ListeVerresPage';
