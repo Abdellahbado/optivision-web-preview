@@ -16,6 +16,8 @@ import {
 import { ProduitForm } from '@/components/forms';
 import { formatCurrency } from '@/lib/utils';
 import { mockProduits } from '@/lib/mockData';
+import { useAuthStore } from '@/stores/authStore';
+import { hasPermission } from '@/types';
 import type { Produit, ProduitInput, CategorieType } from '@/types';
 
 const categories: Record<CategorieType, { label: string; variant: 'primary' | 'success' | 'warning' | 'info' | 'default' }> = {
@@ -27,6 +29,9 @@ const categories: Record<CategorieType, { label: string; variant: 'primary' | 's
 };
 
 export function ProduitsPage() {
+  const { user } = useAuthStore();
+  const canSeePurchasePrice = hasPermission(user?.role, 'canViewPurchasePrice');
+  
   const [products, setProducts] = useState<Produit[]>(mockProduits);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategorieType | null>(null);
@@ -183,13 +188,26 @@ export function ProduitsPage() {
               <TableHead>Nom</TableHead>
               <TableHead>Catégorie</TableHead>
               <TableHead>Marque</TableHead>
-              <TableHead className="text-right">Prix</TableHead>
+              {canSeePurchasePrice && (
+                <TableHead className="text-right">Prix achat</TableHead>
+              )}
+              <TableHead className="text-right">Prix vente</TableHead>
+              {canSeePurchasePrice && (
+                <TableHead className="text-right">Marge</TableHead>
+              )}
               <TableHead className="text-right">Stock</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredProducts.map((product) => (
+            {filteredProducts.map((product) => {
+              const prixAchat = product.prix_achat ?? 0;
+              const margin = product.prix_vente - prixAchat;
+              const marginPercent = prixAchat > 0 
+                ? Math.round((margin / prixAchat) * 100) 
+                : 0;
+              
+              return (
               <TableRow key={product.id}>
                 <TableCell className="font-mono text-sm">{product.reference}</TableCell>
                 <TableCell className="font-medium">{product.nom}</TableCell>
@@ -199,9 +217,21 @@ export function ProduitsPage() {
                   </Badge>
                 </TableCell>
                 <TableCell>{product.marque || '-'}</TableCell>
+                {canSeePurchasePrice && (
+                  <TableCell className="text-right text-text-secondary">
+                    {formatCurrency(prixAchat)}
+                  </TableCell>
+                )}
                 <TableCell className="text-right font-medium">
                   {formatCurrency(product.prix_vente)}
                 </TableCell>
+                {canSeePurchasePrice && (
+                  <TableCell className="text-right">
+                    <span className={margin > 0 ? 'text-success' : 'text-danger'}>
+                      {formatCurrency(margin)} ({marginPercent}%)
+                    </span>
+                  </TableCell>
+                )}
                 <TableCell className="text-right">
                   <div className="flex items-center justify-end gap-2">
                     <span
@@ -258,7 +288,8 @@ export function ProduitsPage() {
                   </div>
                 </TableCell>
               </TableRow>
-            ))}
+              );
+            })}
           </TableBody>
         </Table>
 
