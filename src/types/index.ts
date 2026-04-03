@@ -4,6 +4,7 @@ export * from './produit';
 export * from './commande';
 export * from './facture';
 export * from './listeVerres';
+export * from './auth';
 
 // Dashboard stats type
 export interface DashboardStats {

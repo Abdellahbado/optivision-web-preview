@@ -13,6 +13,8 @@ export interface MontureFields {
 // Verre-specific fields
 export interface VerreFields {
   type_verre?: 'unifocal' | 'bifocal' | 'progressif' | 'degressif' | 'mi-distance';
+  // Algerian market coating types
+  coating_type?: 'HC' | 'HMC' | 'BB' | 'PEG_HC' | 'PEB_HC' | 'PEG_HMC' | 'PEB_HMC' | 'PEG_BLEU_HMC' | 'PEG_BB';
   indice?: 1.5 | 1.56 | 1.6 | 1.67 | 1.74;
   matiere_verre?: 'organique' | 'mineral' | 'polycarbonate' | 'trivex';
   traitements?: string[];     // AR, anti-rayure, photochromique, bluefilter
@@ -114,6 +116,21 @@ export const VERRE_TYPES = [
   { value: 'progressif', label: 'Progressif' },
   { value: 'degressif', label: 'Dégressif' },
   { value: 'mi-distance', label: 'Mi-distance' },
+] as const;
+
+// Algerian lens coating/treatment types (used in local market)
+// HC = Hard Coat (durci), HMC = Hard Multi Coat, BB = Blue Block
+// PEG = Progressive, PEB = Progressive Bifocal
+export const VERRE_COATING_TYPES = [
+  { value: 'HC', label: 'HC (Durci)' },
+  { value: 'HMC', label: 'HMC (Multi-couche)' },
+  { value: 'BB', label: 'BB (Blue Block)' },
+  { value: 'PEG_HC', label: 'PEG HC (Progressif durci)' },
+  { value: 'PEB_HC', label: 'PEB HC (Prog. bifocal durci)' },
+  { value: 'PEG_HMC', label: 'PEG HMC (Progressif multi)' },
+  { value: 'PEB_HMC', label: 'PEB HMC (Prog. bifocal multi)' },
+  { value: 'PEG_BLEU_HMC', label: 'PEG BLEU HMC (Prog. bleu multi)' },
+  { value: 'PEG_BB', label: 'PEG BB (Progressif blue block)' },
 ] as const;
 
 export const VERRE_INDICES = [

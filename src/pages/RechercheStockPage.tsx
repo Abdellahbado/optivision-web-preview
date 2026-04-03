@@ -85,18 +85,22 @@ export function RechercheStockPage() {
       );
     }
 
-    // Type filter
+    // Type filter (coating type or verre type)
     if (typeFilter) {
+      const filterLower = typeFilter.toLowerCase();
       results = results.filter((p) => {
+        const coatingType = p.verre?.coating_type?.toLowerCase() || '';
         const treatments = p.verre?.traitements?.join(' ').toLowerCase() || '';
         const notes = p.notes?.toLowerCase() || '';
         const name = p.nom.toLowerCase();
         const type = p.verre?.type_verre?.toLowerCase() || '';
         return (
-          treatments.includes(typeFilter) ||
-          notes.includes(typeFilter) ||
-          name.includes(typeFilter) ||
-          type.includes(typeFilter)
+          coatingType === filterLower ||
+          coatingType.includes(filterLower) ||
+          treatments.includes(filterLower) ||
+          notes.includes(filterLower) ||
+          name.includes(filterLower) ||
+          type.includes(filterLower)
         );
       });
     }
@@ -240,7 +244,7 @@ export function RechercheStockPage() {
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-3 border-t border-surface-border">
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1">
-              Type de verre
+              Type de traitement
             </label>
             <select
               value={typeFilter}
@@ -248,11 +252,22 @@ export function RechercheStockPage() {
               className="w-full h-9 px-3 text-sm border border-surface-border bg-surface focus:outline-none focus:border-accent"
             >
               <option value="">Tous les types</option>
-              <option value="unifocal">Unifocal</option>
-              <option value="progressif">Progressif</option>
-              <option value="bluefilter">Filtre lumière bleue</option>
-              <option value="photochromique">Photochromique</option>
-              <option value="antireflet">Anti-reflet</option>
+              <optgroup label="Types de traitement (Algérie)">
+                <option value="HC">HC (Durci)</option>
+                <option value="HMC">HMC (Multi-couche)</option>
+                <option value="BB">BB (Blue Block)</option>
+                <option value="PEG_HC">PEG HC (Progressif durci)</option>
+                <option value="PEB_HC">PEB HC (Prog. bifocal durci)</option>
+                <option value="PEG_HMC">PEG HMC (Progressif multi)</option>
+                <option value="PEB_HMC">PEB HMC (Prog. bifocal multi)</option>
+                <option value="PEG_BLEU_HMC">PEG BLEU HMC (Prog. bleu multi)</option>
+                <option value="PEG_BB">PEG BB (Progressif blue block)</option>
+              </optgroup>
+              <optgroup label="Types de verre">
+                <option value="unifocal">Unifocal</option>
+                <option value="progressif">Progressif</option>
+                <option value="bifocal">Bifocal</option>
+              </optgroup>
             </select>
           </div>
           <div>

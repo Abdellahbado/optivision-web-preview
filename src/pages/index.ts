@@ -1,3 +1,4 @@
+export { LoginPage } from './LoginPage';
 export { DashboardPage } from './DashboardPage';
 export { AccueilClientPage } from './AccueilClientPage';
 export { RechercheStockPage } from './RechercheStockPage';
