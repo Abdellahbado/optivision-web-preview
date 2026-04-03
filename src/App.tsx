@@ -3,6 +3,7 @@ import { AppLayout } from "@/components/layout";
 import {
   DashboardPage,
   AccueilClientPage,
+  RechercheStockPage,
   ClientsPage,
   OrdonnancesPage,
   ProduitsPage,
@@ -19,6 +20,7 @@ function App() {
     <Routes>
       <Route path="/" element={<AppLayout />}>
         <Route index element={<DashboardPage />} />
+        <Route path="recherche-stock" element={<RechercheStockPage />} />
         <Route path="accueil-client" element={<AccueilClientPage />} />
         <Route path="clients" element={<ClientsPage />} />
         <Route path="ordonnances" element={<OrdonnancesPage />} />

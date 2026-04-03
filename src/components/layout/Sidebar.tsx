@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   LayoutDashboard,
+  Search,
   UserRoundSearch,
   Users,
   FileText,
@@ -23,6 +24,7 @@ interface SidebarProps {
 
 const menuItems = [
   { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
+  { to: '/recherche-stock', icon: Search, label: 'Recherche stock' },
   { to: '/accueil-client', icon: UserRoundSearch, label: 'Accueil client' },
   { to: '/clients', icon: Users, label: 'Clients' },
   { to: '/ordonnances', icon: FileText, label: 'Ordonnances' },

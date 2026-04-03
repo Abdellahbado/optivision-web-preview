@@ -1,5 +1,6 @@
 export { DashboardPage } from './DashboardPage';
 export { AccueilClientPage } from './AccueilClientPage';
+export { RechercheStockPage } from './RechercheStockPage';
 export { ClientsPage } from './ClientsPage';
 export { OrdonnancesPage } from './OrdonnancesPage';
 export { ProduitsPage } from './ProduitsPage';
