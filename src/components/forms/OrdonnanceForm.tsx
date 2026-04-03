@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Copy } from 'lucide-react';
-import { Button, Input, Textarea, Modal, Select } from '@/components/ui';
+import { Button, Input, Textarea, Modal, Select, OpticalInput, AxisInput } from '@/components/ui';
 import type { OrdonnanceInput } from '@/types';
 
 interface OrdonnanceFormProps {
@@ -43,11 +43,6 @@ export function OrdonnanceForm({ isOpen, onClose, onSubmit, clientId, clientName
 
   const handleNumberChange = (field: keyof OrdonnanceInput, value: string) => {
     const num = value === '' ? undefined : parseFloat(value);
-    handleChange(field, num);
-  };
-
-  const handleIntChange = (field: keyof OrdonnanceInput, value: string) => {
-    const num = value === '' ? undefined : parseInt(value, 10);
     handleChange(field, num);
   };
 
@@ -121,39 +116,38 @@ export function OrdonnanceForm({ isOpen, onClose, onSubmit, clientId, clientName
             </Button>
           </div>
           <div className="grid grid-cols-4 gap-3">
-            <Input
+            <OpticalInput
               label="Sphère"
-              type="number"
-              step="0.25"
-              value={formData.od_sphere ?? ''}
-              onChange={(e) => handleNumberChange('od_sphere', e.target.value)}
+              value={formData.od_sphere}
+              onChange={(val) => handleChange('od_sphere', val)}
+              step={0.25}
+              min={-20}
+              max={20}
               placeholder="0.00"
             />
-            <Input
+            <OpticalInput
               label="Cylindre"
-              type="number"
-              step="0.25"
-              value={formData.od_cylindre ?? ''}
-              onChange={(e) => handleNumberChange('od_cylindre', e.target.value)}
+              value={formData.od_cylindre}
+              onChange={(val) => handleChange('od_cylindre', val)}
+              step={0.25}
+              min={-6}
+              max={6}
               placeholder="0.00"
             />
-            <Input
+            <AxisInput
               label="Axe (°)"
-              type="number"
-              min="0"
-              max="180"
-              value={formData.od_axe ?? ''}
-              onChange={(e) => handleIntChange('od_axe', e.target.value)}
-              placeholder="0"
+              value={formData.od_axe}
+              onChange={(val) => handleChange('od_axe', val)}
+              step={5}
             />
-            <Input
+            <OpticalInput
               label="Addition"
-              type="number"
-              step="0.25"
-              min="0"
-              max="4"
-              value={formData.od_addition ?? ''}
-              onChange={(e) => handleNumberChange('od_addition', e.target.value)}
+              value={formData.od_addition}
+              onChange={(val) => handleChange('od_addition', val)}
+              step={0.25}
+              min={0}
+              max={4}
+              showSign={false}
               placeholder="0.00"
             />
           </div>
@@ -162,39 +156,38 @@ export function OrdonnanceForm({ isOpen, onClose, onSubmit, clientId, clientName
         <div className="space-y-3">
           <h3 className="font-medium text-text-primary">Œil Gauche (OG)</h3>
           <div className="grid grid-cols-4 gap-3">
-            <Input
+            <OpticalInput
               label="Sphère"
-              type="number"
-              step="0.25"
-              value={formData.og_sphere ?? ''}
-              onChange={(e) => handleNumberChange('og_sphere', e.target.value)}
+              value={formData.og_sphere}
+              onChange={(val) => handleChange('og_sphere', val)}
+              step={0.25}
+              min={-20}
+              max={20}
               placeholder="0.00"
             />
-            <Input
+            <OpticalInput
               label="Cylindre"
-              type="number"
-              step="0.25"
-              value={formData.og_cylindre ?? ''}
-              onChange={(e) => handleNumberChange('og_cylindre', e.target.value)}
+              value={formData.og_cylindre}
+              onChange={(val) => handleChange('og_cylindre', val)}
+              step={0.25}
+              min={-6}
+              max={6}
               placeholder="0.00"
             />
-            <Input
+            <AxisInput
               label="Axe (°)"
-              type="number"
-              min="0"
-              max="180"
-              value={formData.og_axe ?? ''}
-              onChange={(e) => handleIntChange('og_axe', e.target.value)}
-              placeholder="0"
+              value={formData.og_axe}
+              onChange={(val) => handleChange('og_axe', val)}
+              step={5}
             />
-            <Input
+            <OpticalInput
               label="Addition"
-              type="number"
-              step="0.25"
-              min="0"
-              max="4"
-              value={formData.og_addition ?? ''}
-              onChange={(e) => handleNumberChange('og_addition', e.target.value)}
+              value={formData.og_addition}
+              onChange={(val) => handleChange('og_addition', val)}
+              step={0.25}
+              min={0}
+              max={4}
+              showSign={false}
               placeholder="0.00"
             />
           </div>

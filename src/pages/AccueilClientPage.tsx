@@ -15,6 +15,9 @@ import {
   Input,
   Select,
   Textarea,
+  SearchableProductSelect,
+  LensSearchSelect,
+  type LensSearchFilters,
 } from '@/components/ui';
 import { ClientForm, OrdonnanceForm } from '@/components/forms';
 import { formatCurrency } from '@/lib/utils';
@@ -53,6 +56,7 @@ export function AccueilClientPage() {
   const [selectedOrdonnanceId, setSelectedOrdonnanceId] = useState<number | null>(null);
   const [selectedMontureId, setSelectedMontureId] = useState<number | null>(null);
   const [selectedVerreId, setSelectedVerreId] = useState<number | null>(null);
+  const [lensFilters, setLensFilters] = useState<LensSearchFilters>({ includeTransposed: true });
   const [dateLivraisonPrevue, setDateLivraisonPrevue] = useState('');
   const [orderNotes, setOrderNotes] = useState('');
   const [orderError, setOrderError] = useState<string | null>(null);
@@ -204,6 +208,7 @@ export function AccueilClientPage() {
     setSelectedOrdonnanceId(null);
     setSelectedMontureId(null);
     setSelectedVerreId(null);
+    setLensFilters({ includeTransposed: true });
     setDateLivraisonPrevue('');
     setOrderNotes('');
     setOrderError(null);
@@ -409,30 +414,24 @@ export function AccueilClientPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Select
+            <div className="grid grid-cols-1 gap-4">
+              <SearchableProductSelect
                 label="Monture"
-                value={selectedMontureId ?? ''}
-                onChange={(e) => setSelectedMontureId(e.target.value ? Number(e.target.value) : null)}
-                options={[
-                  { value: '', label: '-- Aucune --' },
-                  ...montures.map((m) => ({
-                    value: m.id,
-                    label: `${m.nom} • Stock ${m.quantite} • ${formatCurrency(m.prix_vente)}`,
-                  })),
-                ]}
+                products={montures}
+                value={selectedMontureId}
+                onChange={setSelectedMontureId}
+                placeholder="Rechercher une monture..."
+                emptyMessage="Aucune monture trouvée"
               />
-              <Select
+              
+              <LensSearchSelect
                 label="Verre"
-                value={selectedVerreId ?? ''}
-                onChange={(e) => setSelectedVerreId(e.target.value ? Number(e.target.value) : null)}
-                options={[
-                  { value: '', label: '-- Aucun --' },
-                  ...verres.map((v) => ({
-                    value: v.id,
-                    label: `${v.nom} • Stock ${v.quantite} • ${formatCurrency(v.prix_vente)}`,
-                  })),
-                ]}
+                products={verres}
+                value={selectedVerreId}
+                onChange={setSelectedVerreId}
+                filters={lensFilters}
+                onFiltersChange={setLensFilters}
+                placeholder="Rechercher un verre..."
               />
             </div>
 

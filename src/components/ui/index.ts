@@ -6,3 +6,5 @@ export { Card, CardHeader, CardTitle, CardContent } from './Card';
 export { Badge } from './Badge';
 export { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from './Table';
 export { Modal } from './Modal';
+export { OpticalInput, AxisInput, type OpticalInputProps, type AxisInputProps } from './OpticalInput';
+export { SearchableProductSelect, LensSearchSelect, type LensSearchFilters } from './SearchableProductSelect';
