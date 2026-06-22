@@ -5,6 +5,8 @@ export interface Commande {
   numero: string;
   client_id: number;
   ordonnance_id?: number;
+  monture_id?: number;
+  verre_id?: number;
   date_commande: string;
   date_livraison_prevue?: string;
   date_livraison?: string;

@@ -16,7 +16,8 @@ import {
 } from '@/components/ui';
 import { ClientForm } from '@/components/forms';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { mockClients, mockClientExtras } from '@/lib/mockData';
+import { mockClientExtras } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import type { Client, ClientInput } from '@/types';
 
 function isInactive(lastVisit: string): boolean {
@@ -26,7 +27,10 @@ function isInactive(lastVisit: string): boolean {
 }
 
 export function ClientsPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
+  const clients = useAppDataStore((state) => state.clients);
+  const createClient = useAppDataStore((state) => state.createClient);
+  const updateClient = useAppDataStore((state) => state.updateClient);
+  const deleteClient = useAppDataStore((state) => state.deleteClient);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [filterInactive, setFilterInactive] = useState(false);
@@ -51,31 +55,18 @@ export function ClientsPage() {
   }, [clients, searchQuery, filterUnpaid, filterInactive]);
 
   const handleCreateClient = async (data: ClientInput) => {
-    const newId = Math.max(...clients.map(c => c.id)) + 1;
-    const newCode = `CLI-${String(newId).padStart(4, '0')}`;
-    const newClient: Client = {
-      id: newId,
-      code: newCode,
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setClients(prev => [newClient, ...prev]);
+    createClient(data);
   };
 
   const handleUpdateClient = async (data: ClientInput) => {
     if (!editingClient) return;
-    setClients(prev => prev.map(c => 
-      c.id === editingClient.id 
-        ? { ...c, ...data, updated_at: new Date().toISOString() }
-        : c
-    ));
+    updateClient(editingClient.id, data);
     setEditingClient(null);
   };
 
   const handleDeleteClient = () => {
     if (!deletingClient) return;
-    setClients(prev => prev.filter(c => c.id !== deletingClient.id));
+    deleteClient(deletingClient.id);
     setDeletingClient(null);
   };
 

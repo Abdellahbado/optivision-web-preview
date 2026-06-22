@@ -6,9 +6,9 @@ import {
   Receipt, 
   Calendar, 
   CreditCard,
-  Download,
   Eye,
-  DollarSign
+  DollarSign,
+  Printer
 } from 'lucide-react';
 import { 
   Button, 
@@ -23,9 +23,10 @@ import {
   TableHead,
   TableCell,
 } from '@/components/ui';
+import { FacturePrintTemplate } from '@/components/factures/FacturePrintTemplate';
 import { formatCurrency, formatDate } from '@/lib/utils';
-import { mockFactures, mockClients } from '@/lib/mockData';
-import type { Facture, FactureStatut } from '@/types';
+import { useAppDataStore } from '@/stores/appDataStore';
+import type { Client, Commande, Facture, FactureStatut, Ordonnance, Produit } from '@/types';
 
 const statusConfig: Record<FactureStatut, { label: string; variant: 'success' | 'warning' | 'danger' | 'default' }> = {
   DRAFT: { label: 'Brouillon', variant: 'default' },
@@ -36,26 +37,56 @@ const statusConfig: Record<FactureStatut, { label: string; variant: 'success' | 
   CANCELLED: { label: 'Annulée', variant: 'default' },
 };
 
-type FactureWithClient = Facture & { clientNom: string };
+type FactureWithClient = Facture & {
+  clientNom: string;
+  client?: Client;
+  commande?: Commande;
+  ordonnance?: Ordonnance;
+  monture?: Produit;
+  verre?: Produit;
+};
 
 export function FacturesPage() {
+  const clients = useAppDataStore((state) => state.clients);
+  const commandes = useAppDataStore((state) => state.commandes);
+  const ordonnances = useAppDataStore((state) => state.ordonnances);
+  const produits = useAppDataStore((state) => state.produits);
+  const invoices = useAppDataStore((state) => state.factures);
+  const updateFacture = useAppDataStore((state) => state.updateFacture);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FactureStatut | 'all'>('all');
   const [filterUnpaid, setFilterUnpaid] = useState(false);
   const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showPrintModal, setShowPrintModal] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState<FactureWithClient | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
-  const [invoices, setInvoices] = useState<Facture[]>(mockFactures);
 
   const invoicesWithClients = useMemo((): FactureWithClient[] => {
     return invoices.map(invoice => {
-      const client = mockClients.find(c => c.id === invoice.client_id);
+      const client = clients.find(c => c.id === invoice.client_id);
+      const commande = invoice.commande_id
+        ? commandes.find((cmd) => cmd.id === invoice.commande_id)
+        : undefined;
+      const ordonnance = commande?.ordonnance_id
+        ? ordonnances.find((ord) => ord.id === commande.ordonnance_id)
+        : undefined;
+      const monture = commande?.monture_id
+        ? produits.find((produit) => produit.id === commande.monture_id)
+        : undefined;
+      const verre = commande?.verre_id
+        ? produits.find((produit) => produit.id === commande.verre_id)
+        : undefined;
       return {
         ...invoice,
         clientNom: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
+        client,
+        commande,
+        ordonnance,
+        monture,
+        verre,
       };
     });
-  }, [invoices]);
+  }, [invoices, clients, commandes, ordonnances, produits]);
 
   const filteredInvoices = useMemo(() => {
     return invoicesWithClients.filter((invoice) => {
@@ -84,22 +115,32 @@ export function FacturesPage() {
     setShowPaymentModal(true);
   };
 
+  const openPrintModal = (invoice: FactureWithClient) => {
+    setSelectedInvoice(invoice);
+    setShowPrintModal(true);
+  };
+
+  const handlePrintInvoice = () => {
+    document.body.classList.add('printing-facture');
+    window.setTimeout(() => {
+      window.print();
+      window.setTimeout(() => document.body.classList.remove('printing-facture'), 250);
+    }, 50);
+  };
+
   const handlePayment = () => {
     if (!selectedInvoice || !paymentAmount) return;
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) return;
 
-    setInvoices(prev => prev.map(inv => {
-      if (inv.id !== selectedInvoice.id) return inv;
-      const newPaid = Math.min(inv.montant_paye + amount, inv.total_ttc);
-      const newStatus: FactureStatut = newPaid >= inv.total_ttc ? 'PAID' : 'PARTIAL';
-      return { 
-        ...inv, 
-        montant_paye: newPaid, 
-        statut: newStatus,
-        updated_at: new Date().toISOString() 
-      };
-    }));
+    const target = invoices.find((inv) => inv.id === selectedInvoice.id);
+    if (!target) return;
+    const newPaid = Math.min(target.montant_paye + amount, target.total_ttc);
+    const newStatus: FactureStatut = newPaid >= target.total_ttc ? 'PAID' : 'PARTIAL';
+    updateFacture(selectedInvoice.id, {
+      montant_paye: newPaid,
+      statut: newStatus,
+    });
     setShowPaymentModal(false);
     setSelectedInvoice(null);
     setPaymentAmount('');
@@ -270,8 +311,13 @@ export function FacturesPage() {
                       <Button variant="ghost" size="sm" title="Voir">
                         <Eye className="h-4 w-4" />
                       </Button>
-                      <Button variant="ghost" size="sm" title="Télécharger PDF">
-                        <Download className="h-4 w-4" />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        title="Imprimer la facture"
+                        onClick={() => openPrintModal(invoice)}
+                      >
+                        <Printer className="h-4 w-4" />
                       </Button>
                       {remaining > 0 && (
                         <Button 
@@ -353,6 +399,42 @@ export function FacturesPage() {
                 disabled={!paymentAmount || parseFloat(paymentAmount) <= 0}
               >
                 Enregistrer
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Printable facture preview */}
+      <Modal
+        isOpen={showPrintModal}
+        onClose={() => { setShowPrintModal(false); setSelectedInvoice(null); }}
+        title="Aperçu facture"
+        size="lg"
+      >
+        {selectedInvoice && (
+          <div className="space-y-4">
+            <div className="facture-print-preview">
+              <FacturePrintTemplate
+                facture={selectedInvoice}
+                client={selectedInvoice.client}
+                commande={selectedInvoice.commande}
+                ordonnance={selectedInvoice.ordonnance}
+                monture={selectedInvoice.monture}
+                verre={selectedInvoice.verre}
+              />
+            </div>
+
+            <div className="flex justify-end gap-2 print:hidden">
+              <Button
+                variant="secondary"
+                onClick={() => { setShowPrintModal(false); setSelectedInvoice(null); }}
+              >
+                Fermer
+              </Button>
+              <Button onClick={handlePrintInvoice}>
+                <Printer className="h-4 w-4 mr-2" />
+                Imprimer
               </Button>
             </div>
           </div>

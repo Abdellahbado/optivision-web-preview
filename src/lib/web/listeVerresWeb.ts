@@ -1,4 +1,4 @@
-import { mockClients, mockCommandes, mockOrdonnances } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import type {
   GroupedLensItem,
   ListeVerreItem,
@@ -59,7 +59,7 @@ function buildLensLabelFromOrdonnance(
   eye: 'OD' | 'OG',
   ordonnanceId: number | undefined
 ): Omit<ListeVerreItem, 'id' | 'liste_id' | 'commande_id' | 'commande_verre_id' | 'client_nom' | 'en_stock'> {
-  const ord = mockOrdonnances.find((o) => o.id === ordonnanceId);
+  const ord = useAppDataStore.getState().ordonnances.find((o) => o.id === ordonnanceId);
   if (!ord) {
     return { oeil: eye, type_verre: 'unifocal' };
   }
@@ -164,12 +164,13 @@ export async function populateListeFromOrdersWeb(listeId: number, date: string):
   const list = store.listes.find((l) => l.id === listeId);
   if (!list) throw new Error('Liste introuvable');
 
-  const commandsForDate = mockCommandes.filter((cmd) => cmd.date_commande === date);
+  const { commandes, clients } = useAppDataStore.getState();
+  const commandsForDate = commandes.filter((cmd) => cmd.date_commande === date);
   if (commandsForDate.length === 0) return 0;
 
   let added = 0;
   for (const cmd of commandsForDate) {
-    const client = mockClients.find((c) => c.id === cmd.client_id);
+    const client = clients.find((c) => c.id === cmd.client_id);
     const clientNom = client ? `${client.prenom} ${client.nom}` : 'Client';
 
     const alreadyForOrder = store.items.some(

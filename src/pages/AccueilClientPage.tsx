@@ -7,6 +7,7 @@ import {
   Plus,
   Search,
   SkipForward,
+  X,
 } from 'lucide-react';
 import {
   Badge,
@@ -21,8 +22,8 @@ import {
 } from '@/components/ui';
 import { ClientForm, OrdonnanceForm } from '@/components/forms';
 import { formatCurrency } from '@/lib/utils';
-import { mockClients, mockOrdonnances, mockProduits } from '@/lib/mockData';
-import type { Client, ClientInput, Ordonnance, OrdonnanceInput } from '@/types';
+import { useAppDataStore } from '@/stores/appDataStore';
+import type { Client, ClientInput, CommandeInput, OrdonnanceInput } from '@/types';
 
 type StepKey = 'client' | 'ordonnance' | 'commande';
 type StepStatus = 'pending' | 'done' | 'skipped';
@@ -48,10 +49,16 @@ function statusBadge(status: StepStatus) {
 }
 
 export function AccueilClientPage() {
-  const [clients, setClients] = useState<Client[]>(mockClients);
-  const [ordonnances, setOrdonnances] = useState<Ordonnance[]>(mockOrdonnances);
+  const clients = useAppDataStore((state) => state.clients);
+  const ordonnances = useAppDataStore((state) => state.ordonnances);
+  const produits = useAppDataStore((state) => state.produits);
+  const createClient = useAppDataStore((state) => state.createClient);
+  const createOrdonnance = useAppDataStore((state) => state.createOrdonnance);
+  const createCommande = useAppDataStore((state) => state.createCommande);
+  const updateProduitStock = useAppDataStore((state) => state.updateProduitStock);
 
   const [searchClient, setSearchClient] = useState('');
+  const [showClientResults, setShowClientResults] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [selectedOrdonnanceId, setSelectedOrdonnanceId] = useState<number | null>(null);
   const [selectedMontureId, setSelectedMontureId] = useState<number | null>(null);
@@ -64,7 +71,6 @@ export function AccueilClientPage() {
   const [showClientForm, setShowClientForm] = useState(false);
   const [showOrdonnanceForm, setShowOrdonnanceForm] = useState(false);
   const [draftSummary, setDraftSummary] = useState<DraftSummary | null>(null);
-  const [draftSequence, setDraftSequence] = useState(1);
 
   const [skipped, setSkipped] = useState<Record<StepKey, boolean>>({
     client: false,
@@ -80,14 +86,19 @@ export function AccueilClientPage() {
 
     return clients
       .filter((client) => {
+        const prenom = client.prenom.toLowerCase();
+        const nom = client.nom.toLowerCase();
         const fullName = `${client.prenom} ${client.nom}`.toLowerCase();
+        const reversedFullName = `${client.nom} ${client.prenom}`.toLowerCase();
         const phone = normalizePhone(client.telephone || '');
         const phone2 = normalizePhone(client.telephone2 || '');
         return (
+          prenom.includes(textTerm) ||
+          nom.includes(textTerm) ||
           fullName.includes(textTerm) ||
-          client.code.toLowerCase().includes(textTerm) ||
-          phone.includes(phoneTerm) ||
-          phone2.includes(phoneTerm)
+          reversedFullName.includes(textTerm) ||
+          (client.code || '').toLowerCase().includes(textTerm) ||
+          (phoneTerm.length > 0 && (phone.includes(phoneTerm) || phone2.includes(phoneTerm)))
         );
       })
       .slice(0, 6);
@@ -110,12 +121,12 @@ export function AccueilClientPage() {
   );
 
   const montures = useMemo(
-    () => mockProduits.filter((p) => p.categorie === 'MON' && p.actif),
-    []
+    () => produits.filter((p) => p.categorie === 'MON' && p.actif),
+    [produits]
   );
   const verres = useMemo(
-    () => mockProduits.filter((p) => p.categorie === 'VER' && p.actif),
-    []
+    () => produits.filter((p) => p.categorie === 'VER' && p.actif),
+    [produits]
   );
 
   const selectedMonture = montures.find((m) => m.id === selectedMontureId);
@@ -134,40 +145,40 @@ export function AccueilClientPage() {
 
   const handleSelectClient = (client: Client) => {
     setSelectedClient(client);
+    setSearchClient('');
+    setShowClientResults(false);
     setSkipped((prev) => ({ ...prev, client: false }));
     setSelectedOrdonnanceId(null);
     setDraftSummary(null);
     setOrderError(null);
   };
 
+  const handleChangeClient = () => {
+    setSelectedClient(null);
+    setSelectedOrdonnanceId(null);
+    setSelectedMontureId(null);
+    setSelectedVerreId(null);
+    setLensFilters({ includeTransposed: true });
+    setDateLivraisonPrevue('');
+    setOrderNotes('');
+    setOrderError(null);
+    setDraftSummary(null);
+    setSearchClient('');
+    setShowClientResults(false);
+  };
+
   const handleCreateClient = async (data: ClientInput) => {
-    const nextId = Math.max(...clients.map((c) => c.id), 0) + 1;
-    const nextClient: Client = {
-      id: nextId,
-      code: `CLI-${nextId.toString().padStart(4, '0')}`,
-      ...data,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setClients((prev) => [nextClient, ...prev]);
+    const nextClient = createClient(data);
     handleSelectClient(nextClient);
     setShowClientForm(false);
   };
 
   const handleCreateOrdonnance = async (data: OrdonnanceInput) => {
     if (!selectedClient) return;
-    const nextId = Math.max(...ordonnances.map((o) => o.id), 0) + 1;
-    const year = new Date().getFullYear();
-    const nextNum = ordonnances.filter((o) => o.numero.startsWith(`ORD-${year}`)).length + 1;
-
-    const nextOrdonnance: Ordonnance = {
-      id: nextId,
-      numero: `ORD-${year}-${nextNum.toString().padStart(4, '0')}`,
+    const nextOrdonnance = createOrdonnance({
       ...data,
       client_id: selectedClient.id,
-      created_at: new Date().toISOString(),
-    };
-    setOrdonnances((prev) => [nextOrdonnance, ...prev]);
+    });
     setSelectedOrdonnanceId(nextOrdonnance.id);
     setSkipped((prev) => ({ ...prev, ordonnance: false }));
     setShowOrdonnanceForm(false);
@@ -186,11 +197,29 @@ export function AccueilClientPage() {
       return;
     }
 
-    const year = new Date().getFullYear();
-    const numero = `BROU-${year}-${draftSequence.toString().padStart(4, '0')}`;
+    const orderData: CommandeInput = {
+      client_id: selectedClient.id,
+      ordonnance_id: selectedOrdonnance?.id,
+      monture_id: selectedMonture?.id,
+      verre_id: selectedVerre?.id,
+      date_commande: new Date().toISOString().slice(0, 10),
+      date_livraison_prevue: dateLivraisonPrevue || undefined,
+      statut: 'NEW',
+      total_ht: totalCommande,
+      total_ttc: totalCommande,
+      notes: orderNotes || undefined,
+    };
+    const createdOrder = createCommande(orderData);
+
+    if (selectedMonture) {
+      updateProduitStock(selectedMonture.id, -1);
+    }
+    if (selectedVerre) {
+      updateProduitStock(selectedVerre.id, -1);
+    }
 
     setDraftSummary({
-      numero,
+      numero: createdOrder.numero,
       clientNom: `${selectedClient.prenom} ${selectedClient.nom}`,
       ordonnanceNumero: selectedOrdonnance?.numero,
       montureNom: selectedMonture?.nom,
@@ -198,7 +227,6 @@ export function AccueilClientPage() {
       total: totalCommande,
       dateLivraisonPrevue: dateLivraisonPrevue || undefined,
     });
-    setDraftSequence((prev) => prev + 1);
     setSkipped((prev) => ({ ...prev, commande: false }));
   };
 
@@ -220,9 +248,9 @@ export function AccueilClientPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Accueil client (guidé)</h1>
+          <h1 className="text-2xl font-semibold text-text-primary">Vente client</h1>
           <p className="text-text-secondary mt-1">
-            Page rapide pour traiter un client du début à la fin, avec possibilité de passer des étapes.
+            Un parcours simple: client, ordonnance, produits, commande et facture.
           </p>
         </div>
         <Button variant="secondary" onClick={resetFlow}>
@@ -286,57 +314,87 @@ export function AccueilClientPage() {
               )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
-              <Input
-                label="Recherche rapide (téléphone, nom, code)"
-                placeholder="Ex: 0555 12 34 56 ou Benali"
-                value={searchClient}
-                onChange={(e) => setSearchClient(e.target.value)}
-              />
-              <Button variant="secondary" className="md:self-end">
-                <Search className="h-4 w-4 mr-2" />
-                Rechercher
-              </Button>
-            </div>
-
-            {clientSearchResults.length > 0 && (
-              <div className="space-y-2">
-                {clientSearchResults.map((client) => (
-                  <button
-                    key={client.id}
-                    onClick={() => handleSelectClient(client)}
-                    className="w-full text-left border border-surface-border bg-surface hover:bg-cream p-3 transition-colors"
-                  >
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <p className="font-medium text-text-primary">
-                          {client.prenom} {client.nom}
-                        </p>
-                        <p className="text-sm text-text-secondary">
-                          {client.telephone} • {client.code}
-                        </p>
-                      </div>
-                      <Badge variant="info">Choisir</Badge>
-                    </div>
-                  </button>
-                ))}
+            {selectedClient && (
+              <div className="p-3 bg-success-light border border-success/20 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="text-sm text-success font-medium">Client sélectionné</p>
+                  <p className="text-sm text-text-primary mt-1">
+                    {selectedClient.prenom} {selectedClient.nom} • {selectedClient.telephone}
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" onClick={handleChangeClient}>
+                  <X className="h-4 w-4 mr-2" />
+                  Changer client
+                </Button>
               </div>
             )}
 
-            <div className="flex items-center gap-2">
-              <Button variant="outline" onClick={() => setShowClientForm(true)}>
-                <Plus className="h-4 w-4 mr-2" />
-                Nouveau client
-              </Button>
-            </div>
+            {!selectedClient && (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-[1fr_auto] gap-3">
+                  <Input
+                    label="Recherche rapide (téléphone, nom, prénom, code)"
+                    placeholder="Ex: 0555 12 34 56, Benali ou CL-001"
+                    value={searchClient}
+                    onChange={(e) => {
+                      setSearchClient(e.target.value);
+                      setShowClientResults(true);
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        setShowClientResults(true);
+                      }
+                    }}
+                  />
+                  <Button
+                    variant="secondary"
+                    className="md:self-end"
+                    onClick={() => setShowClientResults(true)}
+                    disabled={!searchClient.trim()}
+                  >
+                    <Search className="h-4 w-4 mr-2" />
+                    Rechercher
+                  </Button>
+                </div>
 
-            {selectedClient && (
-              <div className="p-3 bg-success-light border border-success/20">
-                <p className="text-sm text-success font-medium">Client sélectionné</p>
-                <p className="text-sm text-text-primary mt-1">
-                  {selectedClient.prenom} {selectedClient.nom} • {selectedClient.telephone}
-                </p>
-              </div>
+                {showClientResults && searchClient.trim() && (
+                  <div className="space-y-2">
+                    {clientSearchResults.length > 0 ? (
+                      clientSearchResults.map((client) => (
+                        <button
+                          key={client.id}
+                          onClick={() => handleSelectClient(client)}
+                          className="w-full text-left border border-surface-border bg-surface hover:bg-cream p-3 transition-colors"
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-text-primary">
+                                {client.prenom} {client.nom}
+                              </p>
+                              <p className="text-sm text-text-secondary">
+                                {client.telephone} • {client.code}
+                              </p>
+                            </div>
+                            <Badge variant="info">Choisir</Badge>
+                          </div>
+                        </button>
+                      ))
+                    ) : (
+                      <div className="border border-surface-border bg-cream p-3 text-sm text-text-secondary">
+                        Aucun client trouvé pour cette recherche.
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex items-center gap-2">
+                  <Button variant="outline" onClick={() => setShowClientForm(true)}>
+                    <Plus className="h-4 w-4 mr-2" />
+                    Nouveau client
+                  </Button>
+                </div>
+              </>
             )}
           </Card>
 

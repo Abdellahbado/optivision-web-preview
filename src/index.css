@@ -105,3 +105,291 @@
   outline: 2px solid var(--color-accent);
   outline-offset: 2px;
 }
+
+/* Printable shop facture template */
+.facture-print-preview {
+  display: flex;
+  justify-content: center;
+  overflow-x: auto;
+  padding: 18px;
+  background: #f1f1f1;
+}
+
+.facture-print-page {
+  width: 180mm;
+  min-height: 252mm;
+  background: #fff;
+  color: #111;
+  border: 1px solid #111;
+  padding: 15mm 11mm 11mm;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.25;
+  box-shadow: 0 12px 30px rgb(0 0 0 / 18%);
+}
+
+.facture-shop-header {
+  text-align: center;
+}
+
+.facture-shop-header h1 {
+  margin: 0;
+  color: #333;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 32px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.facture-shop-header p {
+  margin: 5px 0 0;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.facture-shop-header h2 {
+  margin: 8px 0;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 22px;
+  font-weight: 800;
+}
+
+.facture-shop-header h3 {
+  margin: 20px 0 0;
+  color: #111;
+  font-family: Arial, Helvetica, sans-serif;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.facture-divider,
+.facture-short-divider {
+  height: 1px;
+  margin: 12px auto 8px;
+  background: #111;
+}
+
+.facture-divider {
+  width: 145px;
+}
+
+.facture-short-divider {
+  width: 80px;
+  margin-top: 8px;
+}
+
+.facture-meta {
+  display: grid;
+  grid-template-columns: 1fr 190px;
+  align-items: end;
+  gap: 12px;
+  margin-top: 32px;
+}
+
+.facture-meta-text p {
+  margin: 7px 0;
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.facture-glasses {
+  display: block;
+  width: 170px;
+  height: 70px;
+  margin: 0 10px 4px 0;
+  color: #111;
+  overflow: hidden;
+}
+
+.facture-form-table {
+  width: 100%;
+  margin-top: 8px;
+  border-collapse: collapse;
+  table-layout: fixed;
+  font-size: 22px;
+}
+
+.facture-col-label {
+  width: 25%;
+}
+
+.facture-col-value {
+  width: 47%;
+}
+
+.facture-col-price {
+  width: 28%;
+}
+
+.facture-form-table td {
+  border: 1px solid #222;
+  min-height: 17mm;
+  height: 17mm;
+  padding: 0 9px;
+  vertical-align: middle;
+}
+
+.facture-client-row {
+  height: 17mm;
+  font-size: 22px;
+  line-height: 1.15;
+}
+
+.facture-client-row span {
+  margin-left: 8px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.facture-center-row {
+  height: 16mm;
+  text-align: center;
+  font-weight: 700;
+}
+
+.facture-label-cell {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.facture-value-cell {
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.facture-price-cell {
+  white-space: nowrap;
+  text-align: right;
+  font-weight: 800;
+}
+
+.facture-price-amount {
+  display: inline-block;
+  min-width: 78px;
+  max-width: 112px;
+  overflow: hidden;
+  text-align: right;
+  vertical-align: middle;
+}
+
+.facture-price-currency {
+  display: inline-block;
+  min-width: 34px;
+  margin-left: 10px;
+  text-align: left;
+  vertical-align: middle;
+}
+
+.facture-code-value {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+}
+
+.facture-code-value strong {
+  font-size: 25px;
+  letter-spacing: 0;
+}
+
+.facture-wrapped-text {
+  display: block;
+  max-height: 2.5em;
+  overflow: hidden;
+  line-height: 1.25;
+}
+
+.facture-total-price-cell {
+  text-align: center;
+  white-space: nowrap;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.facture-total-price-cell span {
+  display: inline-block;
+  margin-right: 16px;
+}
+
+.facture-total-price-cell strong {
+  font-weight: 800;
+}
+
+.facture-letters-row {
+  height: auto;
+  min-height: 25mm;
+  font-size: 22px;
+  line-height: 1.15;
+  padding-top: 7px !important;
+  padding-bottom: 7px !important;
+  vertical-align: top !important;
+  overflow-wrap: anywhere;
+  word-break: normal;
+}
+
+.facture-letters-row strong {
+  display: inline-block;
+  margin-bottom: 3px;
+}
+
+.facture-letters-row span {
+  display: block;
+  margin-left: 0;
+  font-size: 19px;
+  font-weight: 500;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.facture-print-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 18mm;
+  font-size: 13px;
+  color: #555;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.facture-print-footer span {
+  max-width: 50%;
+}
+
+@media print {
+  body.printing-facture {
+    background: #fff;
+  }
+
+  body.printing-facture * {
+    visibility: hidden !important;
+  }
+
+  body.printing-facture .facture-print-page,
+  body.printing-facture .facture-print-page * {
+    visibility: visible !important;
+  }
+
+  body.printing-facture .facture-print-page {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 180mm;
+    min-height: 252mm;
+    margin: 0;
+    border: 1px solid #111;
+    box-shadow: none;
+  }
+
+  body.printing-facture .facture-print-preview {
+    padding: 0;
+    background: #fff;
+  }
+
+  @page {
+    size: A4 portrait;
+    margin: 12mm;
+  }
+}

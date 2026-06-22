@@ -4,7 +4,7 @@ import { Search, CheckCircle, XCircle, ArrowRight, Package } from 'lucide-react'
 import { Badge, Button, Card, Input } from '@/components/ui';
 import { OpticalInput } from '@/components/ui/OpticalInput';
 import { formatCurrency } from '@/lib/utils';
-import { mockProduits } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import type { Produit } from '@/types';
 
 interface PrescriptionSearch {
@@ -59,16 +59,23 @@ function lensMatchesPrescription(
 }
 
 export function RechercheStockPage() {
+  const produits = useAppDataStore((state) => state.produits);
   const [rx, setRx] = useState<PrescriptionSearch>({});
   const [textSearch, setTextSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('');
   const [includeTransposed, setIncludeTransposed] = useState(true);
 
   // Filter lenses (VER category)
-  const verres = useMemo(() => mockProduits.filter((p) => p.categorie === 'VER' && p.actif), []);
+  const verres = useMemo(
+    () => produits.filter((p) => p.categorie === 'VER' && p.actif),
+    [produits]
+  );
 
   // Filter montures (MON category)
-  const montures = useMemo(() => mockProduits.filter((p) => p.categorie === 'MON' && p.actif), []);
+  const montures = useMemo(
+    () => produits.filter((p) => p.categorie === 'MON' && p.actif),
+    [produits]
+  );
 
   // Search results for lenses
   const matchingVerres = useMemo(() => {
@@ -153,15 +160,16 @@ export function RechercheStockPage() {
     setRx({});
     setTextSearch('');
     setTypeFilter('');
+    setIncludeTransposed(true);
   };
 
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Recherche Stock</h1>
+          <h1 className="text-2xl font-semibold text-text-primary">Recherche stock</h1>
           <p className="text-text-secondary mt-1">
-            Vérifier la disponibilité des verres avant de prendre les informations du client
+            Vérifier rapidement la disponibilité avant de créer une vente
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -170,7 +178,7 @@ export function RechercheStockPage() {
           </Button>
           <Link to="/accueil-client">
             <Button>
-              Accueil client
+              Vente client
               <ArrowRight className="h-4 w-4 ml-2" />
             </Button>
           </Link>

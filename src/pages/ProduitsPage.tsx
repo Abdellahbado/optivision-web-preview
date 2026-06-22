@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Plus, Search, Filter, Edit2, Trash2, Package } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { Plus, Search, Filter, Edit2, Trash2, Package, ClipboardList, ArrowRight } from 'lucide-react';
 import {
   Button,
   Input,
@@ -15,8 +16,8 @@ import {
 } from '@/components/ui';
 import { ProduitForm } from '@/components/forms';
 import { formatCurrency } from '@/lib/utils';
-import { mockProduits } from '@/lib/mockData';
 import { useAuthStore } from '@/stores/authStore';
+import { useAppDataStore } from '@/stores/appDataStore';
 import { hasPermission } from '@/types';
 import type { Produit, ProduitInput, CategorieType } from '@/types';
 
@@ -29,13 +30,18 @@ const categories: Record<CategorieType, { label: string; variant: 'primary' | 's
 };
 
 export function ProduitsPage() {
+  const [searchParams] = useSearchParams();
   const { user } = useAuthStore();
   const canSeePurchasePrice = hasPermission(user?.role, 'canViewPurchasePrice');
-  
-  const [products, setProducts] = useState<Produit[]>(mockProduits);
+  const products = useAppDataStore((state) => state.produits);
+  const createProduit = useAppDataStore((state) => state.createProduit);
+  const updateProduit = useAppDataStore((state) => state.updateProduit);
+  const deleteProduit = useAppDataStore((state) => state.deleteProduit);
+  const updateProduitStock = useAppDataStore((state) => state.updateProduitStock);
+
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<CategorieType | null>(null);
-  const [showLowStock, setShowLowStock] = useState(false);
+  const [showLowStock, setShowLowStock] = useState(() => searchParams.get('filter') === 'low-stock');
   const [showForm, setShowForm] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Produit | null>(null);
   const [deletingProduct, setDeletingProduct] = useState<Produit | null>(null);
@@ -57,30 +63,18 @@ export function ProduitsPage() {
   }, [products, searchQuery, selectedCategory, showLowStock]);
 
   const handleCreateProduct = async (data: ProduitInput) => {
-    const newId = Math.max(...products.map(p => p.id)) + 1;
-    const newProduct: Produit = {
-      id: newId,
-      ...data,
-      actif: true,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    };
-    setProducts(prev => [newProduct, ...prev]);
+    createProduit(data);
   };
 
   const handleUpdateProduct = async (data: ProduitInput) => {
     if (!editingProduct) return;
-    setProducts(prev => prev.map(p => 
-      p.id === editingProduct.id 
-        ? { ...p, ...data, updated_at: new Date().toISOString() }
-        : p
-    ));
+    updateProduit(editingProduct.id, data);
     setEditingProduct(null);
   };
 
   const handleDeleteProduct = () => {
     if (!deletingProduct) return;
-    setProducts(prev => prev.filter(p => p.id !== deletingProduct.id));
+    deleteProduit(deletingProduct.id);
     setDeletingProduct(null);
   };
 
@@ -89,13 +83,7 @@ export function ProduitsPage() {
     const amount = parseInt(stockAmount);
     if (isNaN(amount) || amount <= 0) return;
 
-    setProducts(prev => prev.map(p => {
-      if (p.id !== stockModal.product.id) return p;
-      const newQty = stockModal.action === 'add' 
-        ? p.quantite + amount 
-        : Math.max(0, p.quantite - amount);
-      return { ...p, quantite: newQty, updated_at: new Date().toISOString() };
-    }));
+    updateProduitStock(stockModal.product.id, stockModal.action === 'add' ? amount : -amount);
     setStockModal(null);
     setStockAmount('');
   };
@@ -107,15 +95,36 @@ export function ProduitsPage() {
       {/* Page Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Produits</h1>
+          <h1 className="text-2xl font-semibold text-text-primary">Stock</h1>
           <p className="text-text-muted">
-            Gérez votre inventaire de produits
+            Montures, verres, accessoires, prix et quantités disponibles
           </p>
         </div>
         <Button onClick={() => setShowForm(true)}>
           <Plus className="mr-2 h-4 w-4" />
           Nouveau produit
         </Button>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+        <StockTool
+          to="/recherche-stock"
+          icon={Search}
+          title="Recherche stock"
+          description="Vérifier rapidement une monture ou un verre par correction."
+        />
+        <StockTool
+          to="/liste-verres"
+          icon={ClipboardList}
+          title="Liste verres"
+          description="Préparer et imprimer les verres à commander."
+        />
+        <StockTool
+          to="/accueil-client"
+          icon={ArrowRight}
+          title="Vente client"
+          description="Retourner au parcours de vente avec le client."
+        />
       </div>
 
       {/* Low Stock Alert */}
@@ -385,5 +394,29 @@ export function ProduitsPage() {
         </div>
       </Modal>
     </div>
+  );
+}
+
+interface StockToolProps {
+  to: string;
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}
+
+function StockTool({ to, icon: Icon, title, description }: StockToolProps) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 border border-surface-border bg-surface p-4 hover:border-accent/40 hover:bg-accent-light/40 transition-colors"
+    >
+      <div className="flex h-10 w-10 items-center justify-center bg-cream text-accent">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div>
+        <p className="font-semibold text-text-primary">{title}</p>
+        <p className="text-sm text-text-secondary">{description}</p>
+      </div>
+    </Link>
   );
 }

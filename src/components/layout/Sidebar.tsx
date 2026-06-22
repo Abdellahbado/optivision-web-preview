@@ -4,10 +4,8 @@ import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/types';
 import {
   LayoutDashboard,
-  Search,
   UserRoundSearch,
   Users,
-  FileText,
   Package,
   ShoppingCart,
   Receipt,
@@ -16,7 +14,6 @@ import {
   Database,
   ChevronLeft,
   ChevronRight,
-  ClipboardList,
   LogOut,
   Shield,
   User,
@@ -28,20 +25,17 @@ interface SidebarProps {
 }
 
 const menuItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Tableau de bord' },
-  { to: '/recherche-stock', icon: Search, label: 'Recherche stock' },
-  { to: '/accueil-client', icon: UserRoundSearch, label: 'Accueil client' },
+  { to: '/', icon: LayoutDashboard, label: 'Accueil' },
+  { to: '/accueil-client', icon: UserRoundSearch, label: 'Vente client' },
   { to: '/clients', icon: Users, label: 'Clients' },
-  { to: '/ordonnances', icon: FileText, label: 'Ordonnances' },
-  { to: '/produits', icon: Package, label: 'Produits' },
+  { to: '/produits', icon: Package, label: 'Stock' },
   { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
-  { to: '/liste-verres', icon: ClipboardList, label: 'Liste verres' },
   { to: '/factures', icon: Receipt, label: 'Factures' },
-  { to: '/rapports', icon: BarChart3, label: 'Rapports' },
 ];
 
 // Admin-only menu items
 const adminMenuItems = [
+  { to: '/rapports', icon: BarChart3, label: 'Rapports', permission: 'canAccessReports' as const },
   { to: '/sauvegarde', icon: Database, label: 'Sauvegarde', permission: 'canAccessBackup' as const },
   { to: '/parametres', icon: Settings, label: 'Paramètres', permission: 'canAccessSettings' as const },
 ];
@@ -89,6 +83,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
       {/* Navigation */}
       <nav className="flex flex-col h-[calc(100vh-3.5rem)] justify-between py-2">
         <div className="space-y-0.5 px-2">
+          {!collapsed && (
+            <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Travail
+            </p>
+          )}
           {menuItems.map((item) => (
             <NavLink
               key={item.to}
@@ -121,6 +120,11 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
 
         <div className="space-y-0.5 px-2 border-t border-surface-border pt-2">
+          {visibleAdminItems.length > 0 && !collapsed && (
+            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
+              Administration
+            </p>
+          )}
           {/* User info */}
           {user && (
             <div

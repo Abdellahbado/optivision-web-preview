@@ -1,7 +1,8 @@
 import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
 import { Database, Download, Upload, FolderOpen, CheckCircle, AlertTriangle, FileJson, HardDrive, Clock } from 'lucide-react';
-import { mockClients, mockOrdonnances, mockProduits, mockCommandes, mockFactures } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
+import type { Client, Ordonnance, Produit, Commande, Facture } from '@/types';
 
 // Get backup date from localStorage
 const BACKUP_KEY = 'optivision_last_backup';
@@ -10,15 +11,21 @@ interface BackupData {
   version: string;
   created_at: string;
   data: {
-    clients: typeof mockClients;
-    ordonnances: typeof mockOrdonnances;
-    produits: typeof mockProduits;
-    commandes: typeof mockCommandes;
-    factures: typeof mockFactures;
+    clients: Client[];
+    ordonnances: Ordonnance[];
+    produits: Produit[];
+    commandes: Commande[];
+    factures: Facture[];
   };
 }
 
 export function SauvegardePage() {
+  const clients = useAppDataStore((state) => state.clients);
+  const ordonnances = useAppDataStore((state) => state.ordonnances);
+  const produits = useAppDataStore((state) => state.produits);
+  const commandes = useAppDataStore((state) => state.commandes);
+  const factures = useAppDataStore((state) => state.factures);
+  const replaceAllData = useAppDataStore((state) => state.replaceAllData);
   const [lastBackup, setLastBackup] = useState<string | null>(() => {
     return localStorage.getItem(BACKUP_KEY);
   });
@@ -37,11 +44,11 @@ export function SauvegardePage() {
         version: '1.0',
         created_at: new Date().toISOString(),
         data: {
-          clients: mockClients,
-          ordonnances: mockOrdonnances,
-          produits: mockProduits,
-          commandes: mockCommandes,
-          factures: mockFactures,
+          clients,
+          ordonnances,
+          produits,
+          commandes,
+          factures,
         },
       };
 
@@ -113,10 +120,13 @@ export function SauvegardePage() {
         }
       }
 
-      // In a real app with SQLite, we would:
-      // 1. Clear existing tables
-      // 2. Insert all backup data
-      // For now with mock data, we'll just show success
+      replaceAllData({
+        clients: data.data.clients,
+        ordonnances: data.data.ordonnances,
+        produits: data.data.produits,
+        commandes: data.data.commandes,
+        factures: data.data.factures,
+      });
 
       const backupDate = new Date(data.created_at).toLocaleDateString('fr-FR', {
         day: '2-digit',
@@ -126,12 +136,9 @@ export function SauvegardePage() {
         minute: '2-digit',
       });
 
-      // Store backup info
-      localStorage.setItem('optivision_backup_data', JSON.stringify(data.data));
-      
       setMessage({
         type: 'success',
-        text: `Sauvegarde du ${backupDate} importée avec succès. Rechargez l'application pour voir les données.`,
+        text: `Sauvegarde du ${backupDate} importée avec succès.`,
       });
 
     } catch (error) {
@@ -151,11 +158,11 @@ export function SauvegardePage() {
 
   // Calculate data stats
   const stats = {
-    clients: mockClients.length,
-    ordonnances: mockOrdonnances.length,
-    produits: mockProduits.length,
-    commandes: mockCommandes.length,
-    factures: mockFactures.length,
+    clients: clients.length,
+    ordonnances: ordonnances.length,
+    produits: produits.length,
+    commandes: commandes.length,
+    factures: factures.length,
   };
 
   return (

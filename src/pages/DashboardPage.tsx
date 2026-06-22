@@ -6,53 +6,14 @@ import {
   Clock,
   ArrowRight,
   FileText,
-  CreditCard
+  CreditCard,
+  Search,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import { mockDashboardStats, mockClients, mockCommandes, mockProduits } from '@/lib/mockData';
-
-// Prepare dashboard data from mock data
-const stats = mockDashboardStats;
-
-const recentCustomers = mockClients
-  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-  .slice(0, 4)
-  .map(c => ({
-    id: c.id,
-    code: c.code,
-    name: `${c.prenom} ${c.nom}`,
-    phone: c.telephone,
-    date: c.created_at,
-  }));
-
-const pendingOrders = mockCommandes
-  .filter(c => !['DLV', 'CAN'].includes(c.statut))
-  .sort((a, b) => new Date(b.date_commande).getTime() - new Date(a.date_commande).getTime())
-  .slice(0, 4)
-  .map(cmd => {
-    const client = mockClients.find(c => c.id === cmd.client_id);
-    return {
-      id: cmd.id,
-      numero: cmd.numero,
-      customer: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
-      status: cmd.statut,
-      date: cmd.date_commande,
-      amount: cmd.total_ttc,
-    };
-  });
-
-const lowStockProducts = mockProduits
-  .filter(p => p.quantite <= p.stock_minimum)
-  .slice(0, 3)
-  .map(p => ({
-    id: p.id,
-    name: p.nom,
-    stock: p.quantite,
-    min: p.stock_minimum,
-    critical: p.quantite <= Math.floor(p.stock_minimum / 2),
-  }));
+import { useMemo } from 'react';
+import { useAppDataStore } from '@/stores/appDataStore';
 
 const statusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'primary' | 'default' }> = {
   NEW: { label: 'Nouvelle', variant: 'default' },
@@ -65,6 +26,97 @@ const statusLabels: Record<string, { label: string; variant: 'success' | 'warnin
 };
 
 export function DashboardPage() {
+  const clients = useAppDataStore((state) => state.clients);
+  const commandes = useAppDataStore((state) => state.commandes);
+  const produits = useAppDataStore((state) => state.produits);
+  const factures = useAppDataStore((state) => state.factures);
+
+  const stats = useMemo(() => {
+    const now = new Date();
+    const month = now.getMonth();
+    const year = now.getFullYear();
+
+    const facturesMois = factures.filter((f) => {
+      const d = new Date(f.date_facture);
+      return d.getMonth() === month && d.getFullYear() === year;
+    });
+    const facturesMoisPrecedent = factures.filter((f) => {
+      const d = new Date(f.date_facture);
+      const prevMonthDate = new Date(year, month - 1, 1);
+      return d.getMonth() === prevMonthDate.getMonth() && d.getFullYear() === prevMonthDate.getFullYear();
+    });
+
+    const caMois = facturesMois.reduce((sum, f) => sum + f.total_ttc, 0);
+    const caMoisPrecedent = facturesMoisPrecedent.reduce((sum, f) => sum + f.total_ttc, 0);
+    const facturesImpayees = factures.filter((f) => f.montant_paye < f.total_ttc);
+    const montantImpaye = facturesImpayees.reduce((sum, f) => sum + (f.total_ttc - f.montant_paye), 0);
+
+    return {
+      clients_total: clients.length,
+      clients_nouveaux_mois: clients.filter((c) => {
+        const d = new Date(c.created_at);
+        return d.getMonth() === month && d.getFullYear() === year;
+      }).length,
+      commandes_en_cours: commandes.filter((c) => !['DLV', 'CAN'].includes(c.statut)).length,
+      commandes_pret: commandes.filter((c) => c.statut === 'RDY').length,
+      ca_mois: caMois,
+      ca_mois_precedent: caMoisPrecedent,
+      factures_impayees: facturesImpayees.length,
+      montant_impaye: montantImpaye,
+      produits_stock_bas: produits.filter((p) => p.quantite <= p.stock_minimum).length,
+    };
+  }, [clients, commandes, produits, factures]);
+
+  const recentCustomers = useMemo(
+    () =>
+      [...clients]
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+        .slice(0, 4)
+        .map((c) => ({
+          id: c.id,
+          code: c.code,
+          name: `${c.prenom} ${c.nom}`,
+          phone: c.telephone,
+          date: c.created_at,
+        })),
+    [clients]
+  );
+
+  const pendingOrders = useMemo(
+    () =>
+      [...commandes]
+        .filter((c) => !['DLV', 'CAN'].includes(c.statut))
+        .sort((a, b) => new Date(b.date_commande).getTime() - new Date(a.date_commande).getTime())
+        .slice(0, 4)
+        .map((cmd) => {
+          const client = clients.find((c) => c.id === cmd.client_id);
+          return {
+            id: cmd.id,
+            numero: cmd.numero,
+            customer: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
+            status: cmd.statut,
+            date: cmd.date_commande,
+            amount: cmd.total_ttc,
+          };
+        }),
+    [commandes, clients]
+  );
+
+  const lowStockProducts = useMemo(
+    () =>
+      produits
+        .filter((p) => p.quantite <= p.stock_minimum)
+        .slice(0, 3)
+        .map((p) => ({
+          id: p.id,
+          name: p.nom,
+          stock: p.quantite,
+          min: p.stock_minimum,
+          critical: p.quantite <= Math.floor(p.stock_minimum / 2),
+        })),
+    [produits]
+  );
+
   const percentChange = stats.ca_mois_precedent > 0 
     ? ((stats.ca_mois - stats.ca_mois_precedent) / stats.ca_mois_precedent * 100).toFixed(1)
     : '0';
@@ -74,11 +126,18 @@ export function DashboardPage() {
       {/* Page Header */}
       <div>
         <h1 className="text-2xl font-semibold text-text-primary">
-          Tableau de bord
+          Accueil
         </h1>
         <p className="text-text-secondary mt-1">
-          Bienvenue sur OptiVision - Vue d'ensemble de votre activité
+          Les actions importantes du magasin aujourd'hui
         </p>
+      </div>
+
+      <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
+        <QuickAction to="/accueil-client" icon={ShoppingCart} title="Nouvelle vente" description="Client, ordonnance, produits et facture" />
+        <QuickAction to="/recherche-stock" icon={Search} title="Chercher stock" description="Vérifier verres et montures disponibles" />
+        <QuickAction to="/commandes" icon={Clock} title="Suivre commandes" description="Voir montage, prêt et livraison" />
+        <QuickAction to="/factures" icon={CreditCard} title="Paiements" description="Factures payées, partielles et impayées" />
       </div>
 
       {/* Stats Cards */}
@@ -137,7 +196,7 @@ export function DashboardPage() {
               {recentCustomers.map((customer) => (
                 <Link
                   key={customer.id}
-                  to={`/clients/${customer.id}`}
+                  to="/clients"
                   className="flex items-center justify-between p-3 rounded-[10px] hover:bg-cream transition-colors"
                 >
                   <div>
@@ -174,7 +233,7 @@ export function DashboardPage() {
               {pendingOrders.map((order) => (
                 <Link
                   key={order.id}
-                  to={`/commandes/${order.id}`}
+                  to="/commandes"
                   className="flex items-center justify-between p-3 rounded-[10px] hover:bg-cream transition-colors"
                 >
                   <div>
@@ -265,25 +324,25 @@ export function DashboardPage() {
           <CardContent>
             <div className="grid grid-cols-2 gap-3">
               <Link
-                to="/clients"
+                to="/accueil-client"
                 className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
               >
-                <Users className="h-6 w-6 text-accent mb-2" />
-                <span className="text-sm font-medium text-text-primary">Nouveau client</span>
+                <ShoppingCart className="h-6 w-6 text-accent mb-2" />
+                <span className="text-sm font-medium text-text-primary">Nouvelle vente</span>
               </Link>
               <Link
-                to="/commandes"
+                to="/recherche-stock"
                 className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
               >
-                <ShoppingCart className="h-6 w-6 text-warning mb-2" />
-                <span className="text-sm font-medium text-text-primary">Nouvelle commande</span>
+                <Search className="h-6 w-6 text-warning mb-2" />
+                <span className="text-sm font-medium text-text-primary">Recherche stock</span>
               </Link>
               <Link
-                to="/factures"
+                to="/liste-verres"
                 className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
               >
                 <FileText className="h-6 w-6 text-success mb-2" />
-                <span className="text-sm font-medium text-text-primary">Nouvelle facture</span>
+                <span className="text-sm font-medium text-text-primary">Liste verres</span>
               </Link>
               <Link
                 to="/rapports"
@@ -297,6 +356,30 @@ export function DashboardPage() {
         </Card>
       </div>
     </div>
+  );
+}
+
+interface QuickActionProps {
+  to: string;
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}
+
+function QuickAction({ to, icon: Icon, title, description }: QuickActionProps) {
+  return (
+    <Link
+      to={to}
+      className="flex items-center gap-3 border border-surface-border bg-surface p-4 hover:border-accent/40 hover:bg-accent-light/40 transition-colors"
+    >
+      <div className="flex h-10 w-10 items-center justify-center bg-accent text-white">
+        <Icon className="h-5 w-5" />
+      </div>
+      <div className="min-w-0">
+        <p className="font-semibold text-text-primary">{title}</p>
+        <p className="text-xs text-text-secondary leading-snug">{description}</p>
+      </div>
+    </Link>
   );
 }
 

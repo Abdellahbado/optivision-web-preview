@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { Plus, Search, List, LayoutGrid, ChevronRight, Eye, ArrowRight } from 'lucide-react';
 import { Button, Input, Card, Badge, Modal, Select } from '@/components/ui';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
-import { mockCommandes, mockClients } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import type { Commande, CommandeStatut } from '@/types';
 
 const statuses: Record<CommandeStatut, { label: string; color: string; variant: 'info' | 'warning' | 'primary' | 'success' | 'default' | 'danger' }> = {
@@ -29,7 +29,9 @@ const statusTransitions: Record<CommandeStatut, CommandeStatut[]> = {
 type OrderWithClient = Commande & { clientNom: string; clientTel: string };
 
 export function CommandesPage() {
-  const [orders, setOrders] = useState<Commande[]>(mockCommandes);
+  const orders = useAppDataStore((state) => state.commandes);
+  const clients = useAppDataStore((state) => state.clients);
+  const updateCommande = useAppDataStore((state) => state.updateCommande);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [selectedStatus, setSelectedStatus] = useState<CommandeStatut | null>(null);
@@ -39,14 +41,14 @@ export function CommandesPage() {
 
   const ordersWithClients = useMemo((): OrderWithClient[] => {
     return orders.map(order => {
-      const client = mockClients.find(c => c.id === order.client_id);
+      const client = clients.find(c => c.id === order.client_id);
       return {
         ...order,
         clientNom: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
         clientTel: client?.telephone || '',
       };
     });
-  }, [orders]);
+  }, [orders, clients]);
 
   const filteredOrders = useMemo(() => {
     return ordersWithClients.filter((order) => {
@@ -63,12 +65,8 @@ export function CommandesPage() {
 
   const handleStatusChange = () => {
     if (!selectedOrder || !newStatus) return;
-    
-    setOrders(prev => prev.map(o => 
-      o.id === selectedOrder.id 
-        ? { ...o, statut: newStatus, updated_at: new Date().toISOString() }
-        : o
-    ));
+
+    updateCommande(selectedOrder.id, { statut: newStatus });
     setShowStatusModal(false);
     setSelectedOrder(null);
     setNewStatus('');

@@ -19,11 +19,15 @@ import {
 } from '@/components/ui';
 import { OrdonnanceForm } from '@/components/forms';
 import { formatDate } from '@/lib/utils';
-import { mockOrdonnances, mockClients } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import type { Ordonnance, OrdonnanceInput } from '@/types';
 
 export function OrdonnancesPage() {
-  const [ordonnances, setOrdonnances] = useState<Ordonnance[]>(mockOrdonnances);
+  const ordonnances = useAppDataStore((state) => state.ordonnances);
+  const clients = useAppDataStore((state) => state.clients);
+  const createOrdonnance = useAppDataStore((state) => state.createOrdonnance);
+  const updateOrdonnance = useAppDataStore((state) => state.updateOrdonnance);
+  const deleteOrdonnance = useAppDataStore((state) => state.deleteOrdonnance);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedType, setSelectedType] = useState<string>('all');
   const [showClientSelect, setShowClientSelect] = useState(false);
@@ -33,13 +37,13 @@ export function OrdonnancesPage() {
 
   const ordonnancesWithClient = useMemo(() => {
     return ordonnances.map((ord) => {
-      const client = mockClients.find((c) => c.id === ord.client_id);
+      const client = clients.find((c) => c.id === ord.client_id);
       return {
         ...ord,
         clientNom: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
       };
     });
-  }, [ordonnances]);
+  }, [ordonnances, clients]);
 
   const filteredOrdonnances = useMemo(() => {
     return ordonnancesWithClient.filter((ord) => {
@@ -54,40 +58,27 @@ export function OrdonnancesPage() {
   }, [ordonnancesWithClient, searchQuery, selectedType]);
 
   const selectedClient = selectedClientId
-    ? mockClients.find((c) => c.id === selectedClientId)
+    ? clients.find((c) => c.id === selectedClientId)
     : null;
   const editingClient = editingOrdonnance
-    ? mockClients.find((c) => c.id === editingOrdonnance.client_id)
+    ? clients.find((c) => c.id === editingOrdonnance.client_id)
     : null;
 
   const handleCreateOrdonnance = async (data: OrdonnanceInput) => {
-    const newId = Math.max(...ordonnances.map((o) => o.id)) + 1;
-    const year = new Date().getFullYear();
-    const nextNum = ordonnances.filter((o) => o.numero.includes(`ORD-${year}`)).length + 1;
-
-    const newOrdonnance: Ordonnance = {
-      id: newId,
-      numero: `ORD-${year}-${String(nextNum).padStart(4, '0')}`,
-      ...data,
-      created_at: new Date().toISOString(),
-    };
-
-    setOrdonnances((prev) => [newOrdonnance, ...prev]);
+    createOrdonnance(data);
     setSelectedClientId(null);
   };
 
   const handleUpdateOrdonnance = async (data: OrdonnanceInput) => {
     if (!editingOrdonnance) return;
 
-    setOrdonnances((prev) =>
-      prev.map((o) => (o.id === editingOrdonnance.id ? { ...o, ...data } : o))
-    );
+    updateOrdonnance(editingOrdonnance.id, data);
     setEditingOrdonnance(null);
   };
 
   const handleDeleteOrdonnance = () => {
     if (!deletingOrdonnance) return;
-    setOrdonnances((prev) => prev.filter((o) => o.id !== deletingOrdonnance.id));
+    deleteOrdonnance(deletingOrdonnance.id);
     setDeletingOrdonnance(null);
   };
 
@@ -222,7 +213,7 @@ export function OrdonnancesPage() {
             onChange={(e) => setSelectedClientId(e.target.value ? parseInt(e.target.value, 10) : null)}
             options={[
               { value: '', label: '-- Choisir --' },
-              ...mockClients.map((c) => ({
+              ...clients.map((c) => ({
                 value: c.id.toString(),
                 label: `${c.prenom} ${c.nom} (${c.code})`,
               })),

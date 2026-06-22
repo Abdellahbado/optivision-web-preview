@@ -2,13 +2,18 @@ import { useState, useMemo } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button, Input, Badge } from '@/components/ui';
 import { BarChart3, Download, Calendar, Users, Package, TrendingUp, TrendingDown, FileText, AlertTriangle } from 'lucide-react';
 import { formatCurrency, cn } from '@/lib/utils';
-import { mockClients, mockCommandes, mockFactures, mockProduits, mockOrdonnances } from '@/lib/mockData';
+import { useAppDataStore } from '@/stores/appDataStore';
 import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/types';
 
 export function RapportsPage() {
   const { user } = useAuthStore();
   const canSeePrices = hasPermission(user?.role, 'canViewPurchasePrice');
+  const clients = useAppDataStore((state) => state.clients);
+  const commandes = useAppDataStore((state) => state.commandes);
+  const factures = useAppDataStore((state) => state.factures);
+  const produits = useAppDataStore((state) => state.produits);
+  const ordonnances = useAppDataStore((state) => state.ordonnances);
   
   // Date range state
   const [dateRange, setDateRange] = useState<{ start: string; end: string }>(() => {
@@ -27,19 +32,19 @@ export function RapportsPage() {
     endDate.setHours(23, 59, 59, 999);
 
     // Filter commandes by date
-    const commandesInRange = mockCommandes.filter((c) => {
+    const commandesInRange = commandes.filter((c) => {
       const date = new Date(c.date_commande);
       return date >= startDate && date <= endDate;
     });
 
     // Filter factures by date
-    const facturesInRange = mockFactures.filter((f) => {
+    const facturesInRange = factures.filter((f) => {
       const date = new Date(f.date_facture);
       return date >= startDate && date <= endDate;
     });
 
     // Filter ordonnances by date
-    const ordonnancesInRange = mockOrdonnances.filter((o) => {
+    const ordonnancesInRange = ordonnances.filter((o) => {
       const date = new Date(o.date_prescription);
       return date >= startDate && date <= endDate;
     });
@@ -55,7 +60,7 @@ export function RapportsPage() {
     const nouveauxClients = uniqueClientIds.size;
 
     // Low stock products
-    const produitsStockBas = mockProduits.filter((p) => p.quantite <= p.stock_minimum);
+    const produitsStockBas = produits.filter((p) => p.quantite <= p.stock_minimum);
 
     // Calculate revenue if admin
     let benefice = 0;
@@ -76,10 +81,18 @@ export function RapportsPage() {
       produitsStockBas: produitsStockBas.length,
       benefice,
     };
-  }, [dateRange, canSeePrices]);
+  }, [dateRange, canSeePrices, commandes, factures, ordonnances, produits]);
 
   // Generate report data for export
   const generateReport = (type: string) => {
+    const startDate = new Date(dateRange.start);
+    const endDate = new Date(dateRange.end);
+    endDate.setHours(23, 59, 59, 999);
+    const inRange = (date: string) => {
+      const d = new Date(date);
+      return d >= startDate && d <= endDate;
+    };
+
     let data: string[][] = [];
     let filename = '';
 
@@ -88,10 +101,10 @@ export function RapportsPage() {
         filename = `ventes_${dateRange.start}_${dateRange.end}.csv`;
         data = [
           ['Date', 'Facture', 'Client', 'Montant', 'Payé', 'Statut'],
-          ...mockFactures.map((f) => [
+          ...factures.filter((f) => inRange(f.date_facture)).map((f) => [
             f.date_facture,
             f.numero,
-            mockClients.find((c) => c.id === f.client_id)?.nom || '-',
+            clients.find((c) => c.id === f.client_id)?.nom || '-',
             f.total_ttc.toString(),
             f.montant_paye.toString(),
             f.statut,
@@ -100,7 +113,7 @@ export function RapportsPage() {
         break;
       case 'stock':
         filename = `stock_faible_${new Date().toISOString().slice(0, 10)}.csv`;
-        const lowStock = mockProduits.filter((p) => p.quantite <= p.stock_minimum);
+        const lowStock = produits.filter((p) => p.quantite <= p.stock_minimum);
         data = [
           ['Référence', 'Nom', 'Catégorie', 'Stock actuel', 'Stock minimum'],
           ...lowStock.map((p) => [
@@ -114,13 +127,13 @@ export function RapportsPage() {
         break;
       case 'commandes':
         filename = `commandes_en_cours_${new Date().toISOString().slice(0, 10)}.csv`;
-        const enCours = mockCommandes.filter((c) => !['DLV', 'CAN'].includes(c.statut));
+        const enCours = commandes.filter((c) => !['DLV', 'CAN'].includes(c.statut) && inRange(c.date_commande));
         data = [
           ['Date', 'Numéro', 'Client', 'Statut', 'Montant'],
           ...enCours.map((c) => [
             c.date_commande,
             c.numero,
-            mockClients.find((cl) => cl.id === c.client_id)?.nom || '-',
+            clients.find((cl) => cl.id === c.client_id)?.nom || '-',
             c.statut,
             c.total_ttc.toString(),
           ]),
@@ -128,13 +141,13 @@ export function RapportsPage() {
         break;
       case 'impayes':
         filename = `impayes_${new Date().toISOString().slice(0, 10)}.csv`;
-        const impayes = mockFactures.filter((f) => f.montant_paye < f.total_ttc);
+        const impayes = factures.filter((f) => f.montant_paye < f.total_ttc && inRange(f.date_facture));
         data = [
           ['Date', 'Facture', 'Client', 'Total', 'Payé', 'Reste'],
           ...impayes.map((f) => [
             f.date_facture,
             f.numero,
-            mockClients.find((c) => c.id === f.client_id)?.nom || '-',
+            clients.find((c) => c.id === f.client_id)?.nom || '-',
             f.total_ttc.toString(),
             f.montant_paye.toString(),
             (f.total_ttc - f.montant_paye).toString(),
