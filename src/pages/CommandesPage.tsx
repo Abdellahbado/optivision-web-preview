@@ -29,11 +29,12 @@ const statusTransitions: Record<CommandeStatut, CommandeStatut[]> = {
   CAN: [],
 };
 
-type OrderWithClient = Commande & { clientNom: string; clientTel: string };
+type OrderWithClient = Commande & { clientNom: string; clientTel: string; reste: number };
 
 export function CommandesPage() {
   const orders = useAppDataStore((state) => state.commandes);
   const clients = useAppDataStore((state) => state.clients);
+  const factures = useAppDataStore((state) => state.factures);
   const changerStatutCommande = useAppDataStore((state) => state.changerStatutCommande);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
@@ -45,13 +46,16 @@ export function CommandesPage() {
   const ordersWithClients = useMemo((): OrderWithClient[] => {
     return orders.map(order => {
       const client = clients.find(c => c.id === order.client_id);
+      // Ce qui reste du vient de la facture liee, pas du total de la commande.
+      const facture = factures.find((f) => f.commande_id === order.id);
       return {
         ...order,
         clientNom: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
         clientTel: client?.telephone || '',
+        reste: facture ? Math.max(0, facture.total_ttc - facture.montant_paye) : 0,
       };
     });
-  }, [orders, clients]);
+  }, [orders, clients, factures]);
 
   const filteredOrders = useMemo(() => {
     return ordersWithClients.filter((order) => {
@@ -208,8 +212,8 @@ export function CommandesPage() {
                         <span className="font-mono text-sm text-text-muted">
                           {order.numero}
                         </span>
-                        {(order.total_ttc - (order.total_ttc * 0)) > 0 && (
-                          <Badge variant="danger">Impayé</Badge>
+                        {order.reste > 0 && (
+                          <Badge variant="danger">Reste {formatCurrency(order.reste)}</Badge>
                         )}
                       </div>
                       <p className="font-medium text-text-primary mb-1">
