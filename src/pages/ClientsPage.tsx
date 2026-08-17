@@ -16,7 +16,7 @@ import {
 } from '@/components/ui';
 import { ClientForm } from '@/components/forms';
 import { formatDate, formatCurrency } from '@/lib/utils';
-import { mockClientExtras } from '@/lib/mockData';
+import { clientCorrespond } from '@/lib/recherche';
 import { useAppDataStore } from '@/stores/appDataStore';
 import type { Client, ClientInput } from '@/types';
 
@@ -28,6 +28,8 @@ function isInactive(lastVisit: string): boolean {
 
 export function ClientsPage() {
   const clients = useAppDataStore((state) => state.clients);
+  const factures = useAppDataStore((state) => state.factures);
+  const commandes = useAppDataStore((state) => state.commandes);
   const createClient = useAppDataStore((state) => state.createClient);
   const updateClient = useAppDataStore((state) => state.updateClient);
   const deleteClient = useAppDataStore((state) => state.deleteClient);
@@ -38,21 +40,41 @@ export function ClientsPage() {
   const [editingClient, setEditingClient] = useState<Client | null>(null);
   const [deletingClient, setDeletingClient] = useState<Client | null>(null);
 
+  /** Solde et derniere visite calcules sur les vraies factures et commandes. */
+  const infosClient = useMemo(() => {
+    const infos = new Map<number, { solde: number; derniere_visite: string }>();
+    for (const client of clients) {
+      const sesFactures = factures.filter((f) => f.client_id === client.id);
+      const sesCommandes = commandes.filter((c) => c.client_id === client.id);
+      const solde = sesFactures.reduce(
+        (somme, f) => somme + Math.max(0, f.total_ttc - f.montant_paye),
+        0
+      );
+      const derniere = sesCommandes
+        .map((c) => c.date_commande)
+        .sort()
+        .pop();
+      infos.set(client.id, {
+        solde,
+        derniere_visite: derniere ?? client.created_at.slice(0, 10),
+      });
+    }
+    return infos;
+  }, [clients, factures, commandes]);
+
   const filteredCustomers = useMemo(() => {
     return clients.filter((customer) => {
-      const matchesSearch =
-        customer.nom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.prenom.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        customer.telephone.includes(searchQuery) ||
-        customer.code.toLowerCase().includes(searchQuery.toLowerCase());
-
-      const extras = mockClientExtras[customer.id] || { solde: 0, derniere_visite: customer.updated_at };
+      const matchesSearch = clientCorrespond(customer, searchQuery);
+      const extras = infosClient.get(customer.id) ?? {
+        solde: 0,
+        derniere_visite: customer.created_at.slice(0, 10),
+      };
       const matchesUnpaid = !filterUnpaid || extras.solde > 0;
       const matchesInactive = !filterInactive || isInactive(extras.derniere_visite);
 
       return matchesSearch && matchesUnpaid && matchesInactive;
     });
-  }, [clients, searchQuery, filterUnpaid, filterInactive]);
+  }, [clients, searchQuery, filterUnpaid, filterInactive, infosClient]);
 
   const handleCreateClient = async (data: ClientInput) => {
     createClient(data);
@@ -140,7 +162,7 @@ export function ClientsPage() {
           </TableHeader>
           <TableBody>
             {filteredCustomers.map((customer) => {
-              const extras = mockClientExtras[customer.id] || { solde: 0, derniere_visite: customer.updated_at };
+              const extras = infosClient.get(customer.id) ?? { solde: 0, derniere_visite: customer.created_at.slice(0, 10) };
               return (
                 <TableRow key={customer.id}>
                   <TableCell className="font-mono text-sm">{customer.code}</TableCell>

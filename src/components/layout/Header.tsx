@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { clientCorrespond } from '@/lib/recherche';
 import { useAppDataStore } from '@/stores/appDataStore';
 
 interface HeaderProps {
@@ -13,10 +14,6 @@ interface Resultat {
   titre: string;
   detail: string;
   chemin: string;
-}
-
-function chiffres(value: string): string {
-  return value.replace(/\D/g, '');
 }
 
 /** Recherche unique: un client, une commande ou une facture, par n'importe quel bout. */
@@ -33,19 +30,10 @@ export function Header({ sidebarCollapsed }: HeaderProps) {
   const resultats = useMemo<Resultat[]>(() => {
     const recherche = terme.trim().toLowerCase();
     if (recherche.length < 2) return [];
-    const tel = chiffres(terme);
-
     const trouves: Resultat[] = [];
 
     for (const client of clients) {
-      const complet = `${client.prenom} ${client.nom}`.toLowerCase();
-      const inverse = `${client.nom} ${client.prenom}`.toLowerCase();
-      const match =
-        complet.includes(recherche) ||
-        inverse.includes(recherche) ||
-        (client.code || '').toLowerCase().includes(recherche) ||
-        (tel.length >= 3 && chiffres(client.telephone || '').includes(tel));
-      if (match) {
+      if (clientCorrespond(client, terme)) {
         trouves.push({
           id: `c-${client.id}`,
           titre: `${client.prenom} ${client.nom}`,

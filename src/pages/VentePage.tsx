@@ -18,6 +18,7 @@ import { FacturePrintTemplate } from '@/components/factures/FacturePrintTemplate
 import { FicheAtelierPrintTemplate } from '@/components/impression/FicheAtelierPrintTemplate';
 import { formatCurrency } from '@/lib/utils';
 import { MODE_PAIEMENT_OPTIONS } from '@/lib/labels';
+import { clientCorrespond } from '@/lib/recherche';
 import { useAppDataStore } from '@/stores/appDataStore';
 import { LIGNE_LABELS } from '@/types';
 import type {
@@ -43,10 +44,6 @@ const CATEGORIE_PAR_LIGNE: Record<LigneType, Produit['categorie'] | null> = {
   ACCESSOIRE: 'ACC',
   SERVICE: 'SRV',
 };
-
-function normalizePhone(value: string): string {
-  return value.replace(/\D/g, '');
-}
 
 function formatDateFr(value?: string): string {
   if (!value) return '';
@@ -146,35 +143,10 @@ export function VentePage() {
 
   /* ----------------------------- Recherche client ----------------------------- */
 
-  // Recherche par nom, prenom, telephone, code ou date de naissance
-  // (12/05/1980, 1980-05-12 ou simplement 1980).
+  // Meme recherche que partout ailleurs (nom, telephone, code, naissance).
   const resultats = useMemo(() => {
-    const terme = recherche.trim().toLowerCase();
-    if (!terme) return [];
-    const chiffres = normalizePhone(recherche);
-
-    return clients
-      .filter((item) => {
-        const complet = `${item.prenom} ${item.nom}`.toLowerCase();
-        const inverse = `${item.nom} ${item.prenom}`.toLowerCase();
-        const tel = normalizePhone(item.telephone || '');
-        const tel2 = normalizePhone(item.telephone2 || '');
-        const naissance = (item.date_naissance || '').toLowerCase();
-        const naissanceFr = formatDateFr(item.date_naissance).toLowerCase();
-        const naissanceChiffres = normalizePhone(item.date_naissance || '');
-        return (
-          item.prenom.toLowerCase().includes(terme) ||
-          item.nom.toLowerCase().includes(terme) ||
-          complet.includes(terme) ||
-          inverse.includes(terme) ||
-          (item.code || '').toLowerCase().includes(terme) ||
-          (chiffres.length >= 3 && (tel.includes(chiffres) || tel2.includes(chiffres))) ||
-          naissance.includes(terme) ||
-          naissanceFr.includes(terme) ||
-          (chiffres.length >= 4 && naissanceChiffres.includes(chiffres))
-        );
-      })
-      .slice(0, 6);
+    if (!recherche.trim()) return [];
+    return clients.filter((item) => clientCorrespond(item, recherche)).slice(0, 6);
   }, [clients, recherche]);
 
   const ordonnancesClient = useMemo(() => {
