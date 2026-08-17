@@ -1,44 +1,36 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layout";
 import { useAuthStore } from "@/stores/authStore";
 import {
-  LoginPage,
-  DashboardPage,
-  AccueilClientPage,
-  RechercheStockPage,
+  ArgentPage,
+  AtelierPage,
+  ClientDetailPage,
   ClientsPage,
-  OrdonnancesPage,
-  ProduitsPage,
-  CommandesPage,
-  FacturesPage,
-  RapportsPage,
+  DashboardPage,
+  LoginPage,
   ParametresPage,
+  RapportsPage,
   SauvegardePage,
-  ListeVerresPage,
+  StockPage,
+  VentePage,
 } from "@/pages";
 
-// Protected route wrapper
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
-  
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-  
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
   return <>{children}</>;
 }
 
-// Admin-only route wrapper
 function AdminRoute({ children }: { children: React.ReactNode }) {
   const user = useAuthStore((state) => state.user);
-  
-  if (user?.role !== 'admin') {
-    return <Navigate to="/" replace />;
-  }
-  
+  if (user?.role !== 'admin') return <Navigate to="/" replace />;
   return <>{children}</>;
 }
 
+/**
+ * Six destinations, plus la fiche client et les pages d'administration.
+ * Les anciens chemins redirigent pour ne casser aucun raccourci.
+ */
 function App() {
   return (
     <Routes>
@@ -52,15 +44,29 @@ function App() {
         }
       >
         <Route index element={<DashboardPage />} />
-        <Route path="recherche-stock" element={<RechercheStockPage />} />
-        <Route path="accueil-client" element={<AccueilClientPage />} />
+        <Route path="vente" element={<VentePage />} />
         <Route path="clients" element={<ClientsPage />} />
-        <Route path="ordonnances" element={<OrdonnancesPage />} />
-        <Route path="produits" element={<ProduitsPage />} />
-        <Route path="commandes" element={<CommandesPage />} />
-        <Route path="liste-verres" element={<ListeVerresPage />} />
-        <Route path="factures" element={<FacturesPage />} />
-        <Route path="rapports" element={<RapportsPage />} />
+        <Route path="clients/:id" element={<ClientDetailPage />} />
+        <Route path="commandes" element={<AtelierPage />} />
+        <Route path="stock" element={<StockPage />} />
+        <Route path="argent" element={<ArgentPage />} />
+
+        {/* Anciens chemins */}
+        <Route path="accueil-client" element={<Navigate to="/vente" replace />} />
+        <Route path="produits" element={<Navigate to="/stock" replace />} />
+        <Route path="recherche-stock" element={<Navigate to="/stock" replace />} />
+        <Route path="ordonnances" element={<Navigate to="/clients" replace />} />
+        <Route path="liste-verres" element={<Navigate to="/commandes" replace />} />
+        <Route path="factures" element={<Navigate to="/argent" replace />} />
+
+        <Route
+          path="rapports"
+          element={
+            <AdminRoute>
+              <RapportsPage />
+            </AdminRoute>
+          }
+        />
         <Route
           path="parametres"
           element={
@@ -77,6 +83,7 @@ function App() {
             </AdminRoute>
           }
         />
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Route>
     </Routes>
   );

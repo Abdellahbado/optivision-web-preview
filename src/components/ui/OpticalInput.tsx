@@ -36,6 +36,8 @@ export function OpticalInput({
   className,
 }: OpticalInputProps) {
   const inputId = React.useId();
+  const [isEditing, setIsEditing] = React.useState(false);
+  const [draftValue, setDraftValue] = React.useState('');
 
   // Format value for display
   const formatValue = (val: number | undefined): string => {
@@ -45,12 +47,21 @@ export function OpticalInput({
     return formatted;
   };
 
+  React.useEffect(() => {
+    if (!isEditing) {
+      setDraftValue(formatValue(value));
+    }
+  }, [isEditing, value]);
+
   // Parse input string to number
   const parseInput = (str: string): number | undefined => {
     if (str === '' || str === '-' || str === '+') return undefined;
     const cleaned = str.replace(/[^0-9.\-+]/g, '');
+    // Un signe tape apres le nombre ("2.5-") doit compter comme un signe.
+    const trailingSign = /[-+]$/.exec(cleaned)?.[0];
     const num = parseFloat(cleaned);
     if (isNaN(num)) return undefined;
+    if (trailingSign) return trailingSign === '-' ? -Math.abs(num) : Math.abs(num);
     return num;
   };
 
@@ -79,17 +90,48 @@ export function OpticalInput({
   };
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const parsed = parseInput(e.target.value);
+    const nextDraft = e.target.value.replace(',', '.');
+    setDraftValue(nextDraft);
+
+    const parsed = parseInput(nextDraft);
     if (parsed !== undefined) {
       onChange(clamp(roundToStep(parsed)));
-    } else {
+    } else if (nextDraft === '') {
       onChange(undefined);
     }
   };
 
   const handleBlur = () => {
+    setIsEditing(false);
     if (value !== undefined) {
       onChange(clamp(roundToStep(value)));
+    }
+  };
+
+  /** Le clavier doit suffire: «-» rend la valeur negative, «+» la rend positive. */
+  const applySign = (negatif: boolean) => {
+    const courant = value ?? parseInput(draftValue) ?? 0;
+    const suivant = clamp(roundToStep(negatif ? -Math.abs(courant) : Math.abs(courant)));
+    onChange(suivant);
+    setDraftValue(String(suivant));
+  };
+
+  const handleKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === '-' || event.key === '+') {
+      // Champ encore vide: on laisse taper "-2.50" normalement.
+      const vide = draftValue.trim() === '' && value === undefined;
+      if (vide) return;
+      event.preventDefault();
+      applySign(event.key === '-');
+      return;
+    }
+    if (event.key === 'ArrowUp') {
+      event.preventDefault();
+      handleIncrement();
+    }
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      handleDecrement();
     }
   };
 
@@ -123,8 +165,13 @@ export function OpticalInput({
           id={inputId}
           type="text"
           inputMode="decimal"
-          value={formatValue(value)}
+          value={isEditing ? draftValue : formatValue(value)}
+          onFocus={() => {
+            setIsEditing(true);
+            setDraftValue(value === undefined ? '' : String(value));
+          }}
           onChange={handleInputChange}
+          onKeyDown={handleKeyDown}
           onBlur={handleBlur}
           placeholder={placeholder}
           disabled={disabled}

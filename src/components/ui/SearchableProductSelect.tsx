@@ -256,6 +256,7 @@ interface LensSearchSelectProps {
   disabled?: boolean;
   error?: string;
   className?: string;
+  hideCorrectionInputs?: boolean;
 }
 
 export function LensSearchSelect({
@@ -269,6 +270,7 @@ export function LensSearchSelect({
   disabled = false,
   error,
   className,
+  hideCorrectionInputs = false,
 }: LensSearchSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [textSearch, setTextSearch] = useState('');
@@ -297,7 +299,15 @@ export function LensSearchSelect({
         const treatments = p.verre?.traitements?.join(' ').toLowerCase() || '';
         const notes = p.notes?.toLowerCase() || '';
         const name = p.nom.toLowerCase();
-        return treatments.includes(typeTerm) || notes.includes(typeTerm) || name.includes(typeTerm);
+        const lensType = p.verre?.type_verre?.toLowerCase() || '';
+        const coatingType = p.verre?.coating_type?.toLowerCase() || '';
+        return (
+          treatments.includes(typeTerm) ||
+          notes.includes(typeTerm) ||
+          name.includes(typeTerm) ||
+          lensType.includes(typeTerm) ||
+          coatingType.includes(typeTerm)
+        );
       });
     }
 
@@ -370,7 +380,7 @@ export function LensSearchSelect({
       )}
 
       {/* Filters row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className={cn('grid gap-2', hideCorrectionInputs ? 'grid-cols-1 sm:grid-cols-2' : 'grid-cols-2 sm:grid-cols-4')}>
         <div>
           <label className="block text-xs text-text-secondary mb-1">Type</label>
           <select
@@ -387,52 +397,60 @@ export function LensSearchSelect({
             <option value="unifocal">Unifocal</option>
           </select>
         </div>
-        <div>
-          <label className="block text-xs text-text-secondary mb-1">Sphère</label>
-          <input
-            type="number"
-            step="0.25"
-            value={filters.sphere ?? ''}
-            onChange={(e) => onFiltersChange({
-              ...filters,
-              sphere: e.target.value ? parseFloat(e.target.value) : undefined
-            })}
-            placeholder="ex: -2.00"
-            disabled={disabled}
-            className="w-full h-8 px-2 text-xs border border-surface-border bg-surface focus:outline-none focus:border-accent"
-          />
-        </div>
-        <div>
-          <label className="block text-xs text-text-secondary mb-1">Cylindre</label>
-          <input
-            type="number"
-            step="0.25"
-            value={filters.cylinder ?? ''}
-            onChange={(e) => onFiltersChange({
-              ...filters,
-              cylinder: e.target.value ? parseFloat(e.target.value) : undefined
-            })}
-            placeholder="ex: -1.00"
-            disabled={disabled}
-            className="w-full h-8 px-2 text-xs border border-surface-border bg-surface focus:outline-none focus:border-accent"
-          />
-        </div>
-        <div className="flex items-end">
-          <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer h-8">
-            <input
-              type="checkbox"
-              checked={filters.includeTransposed ?? true}
-              onChange={(e) => onFiltersChange({ ...filters, includeTransposed: e.target.checked })}
-              disabled={disabled}
-              className="w-4 h-4 accent-accent"
-            />
-            <span>+ Transposition</span>
-          </label>
-        </div>
+        {hideCorrectionInputs ? (
+          <div className="flex items-end text-xs text-text-muted">
+            Correction prise depuis l'ordonnance sélectionnée.
+          </div>
+        ) : (
+          <>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Sphère</label>
+              <input
+                type="number"
+                step="0.25"
+                value={filters.sphere ?? ''}
+                onChange={(e) => onFiltersChange({
+                  ...filters,
+                  sphere: e.target.value ? parseFloat(e.target.value) : undefined
+                })}
+                placeholder="ex: -2.00"
+                disabled={disabled}
+                className="w-full h-8 px-2 text-xs border border-surface-border bg-surface focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div>
+              <label className="block text-xs text-text-secondary mb-1">Cylindre</label>
+              <input
+                type="number"
+                step="0.25"
+                value={filters.cylinder ?? ''}
+                onChange={(e) => onFiltersChange({
+                  ...filters,
+                  cylinder: e.target.value ? parseFloat(e.target.value) : undefined
+                })}
+                placeholder="ex: -1.00"
+                disabled={disabled}
+                className="w-full h-8 px-2 text-xs border border-surface-border bg-surface focus:outline-none focus:border-accent"
+              />
+            </div>
+            <div className="flex items-end">
+              <label className="flex items-center gap-2 text-xs text-text-secondary cursor-pointer h-8">
+                <input
+                  type="checkbox"
+                  checked={filters.includeTransposed ?? true}
+                  onChange={(e) => onFiltersChange({ ...filters, includeTransposed: e.target.checked })}
+                  disabled={disabled}
+                  className="w-4 h-4 accent-accent"
+                />
+                <span>+ Transposition</span>
+              </label>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Transposition explanation */}
-      {filters.sphere !== undefined && filters.cylinder !== undefined && filters.includeTransposed && (
+      {!hideCorrectionInputs && filters.sphere !== undefined && filters.cylinder !== undefined && filters.includeTransposed && (
         <div className="text-xs text-text-muted bg-cream px-2 py-1 border border-surface-border">
           Recherche: {filters.sphere >= 0 ? '+' : ''}{filters.sphere?.toFixed(2)} / {filters.cylinder >= 0 ? '+' : ''}{filters.cylinder?.toFixed(2)}
           {' '}⟺{' '}

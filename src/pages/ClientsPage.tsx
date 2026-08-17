@@ -217,19 +217,10 @@ export function ClientsPage() {
           </div>
         )}
 
-        {/* Pagination placeholder */}
         <div className="flex items-center justify-between border-t border-surface-border px-4 py-3">
           <p className="text-sm text-text-secondary">
             {filteredCustomers.length} client(s) trouvé(s)
           </p>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" disabled>
-              Précédent
-            </Button>
-            <Button variant="outline" size="sm" disabled>
-              Suivant
-            </Button>
-          </div>
         </div>
       </Card>
 

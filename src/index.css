@@ -393,3 +393,162 @@
     margin: 12mm;
   }
 }
+
+/* ------------------------------------------------------------------ */
+/* Fiche d'atelier                                                     */
+/* ------------------------------------------------------------------ */
+
+.atelier-print-page {
+  background: #fff;
+  color: #111;
+  width: 180mm;
+  padding: 10mm;
+  margin: 0 auto;
+  border: 1px solid #111;
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+.atelier-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  border-bottom: 2px solid #111;
+  padding-bottom: 6px;
+}
+
+.atelier-header h1 {
+  font-size: 20px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.atelier-header p {
+  font-size: 12px;
+}
+
+.atelier-numero {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  font-size: 13px;
+}
+
+.atelier-numero strong {
+  font-size: 16px;
+}
+
+.atelier-client {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+  margin-top: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #111;
+}
+
+.atelier-label {
+  display: block;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.atelier-client strong {
+  font-size: 15px;
+}
+
+.atelier-correction {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 12px;
+  font-size: 15px;
+}
+
+.atelier-correction th,
+.atelier-correction td {
+  border: 1px solid #111;
+  padding: 6px 4px;
+  text-align: center;
+}
+
+.atelier-correction thead th {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.atelier-correction tbody th {
+  font-weight: 700;
+}
+
+.atelier-articles,
+.atelier-notes {
+  margin-top: 12px;
+}
+
+.atelier-articles h2,
+.atelier-notes h2 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  border-bottom: 1px solid #111;
+  padding-bottom: 2px;
+  margin-bottom: 6px;
+}
+
+.atelier-articles li {
+  font-size: 14px;
+  padding: 3px 0;
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+}
+
+.atelier-qte {
+  font-weight: 700;
+}
+
+.atelier-tag {
+  font-size: 10px;
+  text-transform: uppercase;
+  border: 1px solid #111;
+  padding: 0 4px;
+}
+
+.atelier-notes p {
+  font-size: 14px;
+  min-height: 34px;
+}
+
+.atelier-footer {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 18px;
+  padding-top: 8px;
+  border-top: 1px solid #111;
+  font-size: 12px;
+}
+
+@media print {
+  body.printing-atelier {
+    background: #fff;
+  }
+
+  body.printing-atelier * {
+    visibility: hidden !important;
+  }
+
+  body.printing-atelier .atelier-print-page,
+  body.printing-atelier .atelier-print-page * {
+    visibility: visible !important;
+  }
+
+  body.printing-atelier .atelier-print-page {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 180mm;
+    margin: 0;
+    box-shadow: none;
+  }
+}

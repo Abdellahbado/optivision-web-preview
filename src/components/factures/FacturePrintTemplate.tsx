@@ -1,5 +1,6 @@
 import { Glasses } from 'lucide-react';
 import { formatDate } from '@/lib/utils';
+import { useAppDataStore } from '@/stores/appDataStore';
 import { getSimpleFoyerOrganicTariffCode } from '@/lib/opticalTariffCodes';
 import type { Client, Commande, Facture, Ordonnance, Produit } from '@/types';
 
@@ -149,6 +150,7 @@ export function FacturePrintTemplate({
   monture,
   verre,
 }: FacturePrintTemplateProps) {
+  const magasin = useAppDataStore((state) => state.parametres);
   const clientName = client ? `${client.nom} ${client.prenom}` : 'Client inconnu';
   const od = ordonnance
     ? formatPrescriptionLine(
@@ -174,18 +176,38 @@ export function FacturePrintTemplate({
   const ogTariff = ordonnance
     ? getSimpleFoyerOrganicTariffCode(ordonnance.og_sphere, ordonnance.og_cylindre)
     : undefined;
+  // Les prix imprimes viennent des lignes reellement vendues.
+  // Les codes tarifaires restent affiches, mais ne remplacent plus le prix.
+  const lignes = commande?.lignes ?? [];
+  const ligneOd = lignes.find((ligne) => ligne.type === 'VERRE_OD');
+  const ligneOg = lignes.find((ligne) => ligne.type === 'VERRE_OG');
+  const ligneMonture = lignes.find((ligne) => ligne.type === 'MONTURE');
+  const autresLignes = lignes.filter(
+    (ligne) => !['VERRE_OD', 'VERRE_OG', 'MONTURE'].includes(ligne.type)
+  );
+
   const verrePrice = verre?.prix_vente;
   const odVerrePrice =
-    odTariff?.price ?? (verrePrice != null && hasOd ? (hasOg ? verrePrice / 2 : verrePrice) : undefined);
+    ligneOd?.prix_total ??
+    (lignes.length > 0
+      ? undefined
+      : odTariff?.price ??
+        (verrePrice != null && hasOd ? (hasOg ? verrePrice / 2 : verrePrice) : undefined));
   const ogVerrePrice =
-    ogTariff?.price ?? (verrePrice != null && hasOg ? (hasOd ? verrePrice / 2 : verrePrice) : undefined);
-  const montureLabel = monture?.nom ?? '';
+    ligneOg?.prix_total ??
+    (lignes.length > 0
+      ? undefined
+      : ogTariff?.price ??
+        (verrePrice != null && hasOg ? (hasOd ? verrePrice / 2 : verrePrice) : undefined));
+  const montureLabel = ligneMonture?.description ?? monture?.nom ?? '';
+  const monturePrice = ligneMonture?.prix_total ?? monture?.prix_vente;
+  const afficherMonture = !!ligneMonture || !!monture;
 
   return (
     <article className="facture-print-page">
       <header className="facture-shop-header">
-        <h1>OPTIQUE KHADIDJA</h1>
-        <p>Opticien Diplomé Sup. Optique</p>
+        <h1>{magasin.nom_magasin}</h1>
+        <p>{magasin.specialite}</p>
         <div className="facture-divider" />
         <h2>Verres Correcteurs et Solaires</h2>
         <h2>Lentilles de Contact</h2>
@@ -197,10 +219,10 @@ export function FacturePrintTemplate({
       <section className="facture-meta">
         <div className="facture-meta-text">
           <p>
-            <strong>N.I.F.N : </strong>29731607128727
+            <strong>N.I.F.N : </strong>{magasin.nif}
           </p>
           <p>
-            <strong>N°Article : </strong>42120041947
+            <strong>N°Article : </strong>{magasin.numero_article}
           </p>
           <p>
             <strong>Date : </strong>{formatDate(facture.date_facture)}
@@ -241,15 +263,26 @@ export function FacturePrintTemplate({
             </td>
             <PriceCell amount={ogVerrePrice} />
           </tr>
-          {monture && (
+          {afficherMonture && (
             <tr>
               <td className="facture-label-cell">Monture :</td>
               <td className="facture-value-cell">
                 <span className="facture-wrapped-text">{montureLabel}</span>
               </td>
-              <PriceCell amount={monture.prix_vente} />
+              <PriceCell amount={monturePrice} />
             </tr>
           )}
+          {autresLignes.map((ligne) => (
+            <tr key={ligne.id}>
+              <td className="facture-label-cell">
+                {ligne.quantite > 1 ? `${ligne.quantite} ×` : ''}
+              </td>
+              <td className="facture-value-cell">
+                <span className="facture-wrapped-text">{ligne.description}</span>
+              </td>
+              <PriceCell amount={ligne.prix_total} />
+            </tr>
+          ))}
           <tr>
             <td className="facture-label-cell">Total :</td>
             <td colSpan={2} className="facture-total-price-cell">

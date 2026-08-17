@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
-import { Plus, Search, Filter, Edit2, Trash2, Package, ClipboardList, ArrowRight } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Plus, Search, Filter, Edit2, Trash2, Package } from 'lucide-react';
 import {
   Button,
   Input,
@@ -106,26 +106,7 @@ export function ProduitsPage() {
         </Button>
       </div>
 
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <StockTool
-          to="/recherche-stock"
-          icon={Search}
-          title="Recherche stock"
-          description="Vérifier rapidement une monture ou un verre par correction."
-        />
-        <StockTool
-          to="/liste-verres"
-          icon={ClipboardList}
-          title="Liste verres"
-          description="Préparer et imprimer les verres à commander."
-        />
-        <StockTool
-          to="/accueil-client"
-          icon={ArrowRight}
-          title="Vente client"
-          description="Retourner au parcours de vente avec le client."
-        />
-      </div>
+      {/* Les raccourcis d'antan sont remplaces par les onglets de la page Stock. */}
 
       {/* Low Stock Alert */}
       {lowStockCount > 0 && (
@@ -394,29 +375,5 @@ export function ProduitsPage() {
         </div>
       </Modal>
     </div>
-  );
-}
-
-interface StockToolProps {
-  to: string;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}
-
-function StockTool({ to, icon: Icon, title, description }: StockToolProps) {
-  return (
-    <Link
-      to={to}
-      className="flex items-center gap-3 border border-surface-border bg-surface p-4 hover:border-accent/40 hover:bg-accent-light/40 transition-colors"
-    >
-      <div className="flex h-10 w-10 items-center justify-center bg-cream text-accent">
-        <Icon className="h-5 w-5" />
-      </div>
-      <div>
-        <p className="font-semibold text-text-primary">{title}</p>
-        <p className="text-sm text-text-secondary">{description}</p>
-      </div>
-    </Link>
   );
 }

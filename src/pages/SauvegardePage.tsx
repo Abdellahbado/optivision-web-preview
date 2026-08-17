@@ -2,11 +2,27 @@ import { useState, useRef } from 'react';
 import { Card, CardHeader, CardTitle, CardContent, Button } from '@/components/ui';
 import { Database, Download, Upload, FolderOpen, CheckCircle, AlertTriangle, FileJson, HardDrive, Clock } from 'lucide-react';
 import { useAppDataStore } from '@/stores/appDataStore';
-import type { Client, Ordonnance, Produit, Commande, Facture } from '@/types';
+import type { Compteurs } from '@/lib/data';
+import type {
+  Client,
+  Commande,
+  Facture,
+  ListeVerreItem,
+  ListeVerres,
+  MouvementStock,
+  Ordonnance,
+  Paiement,
+  Produit,
+} from '@/types';
 
 // Get backup date from localStorage
 const BACKUP_KEY = 'optivision_last_backup';
 
+/**
+ * La sauvegarde contient tout, y compris les paiements, les mouvements de
+ * stock et les compteurs de numerotation: sans eux, une restauration
+ * perdrait l'historique d'argent et pourrait reutiliser un numero de facture.
+ */
 interface BackupData {
   version: string;
   created_at: string;
@@ -16,6 +32,11 @@ interface BackupData {
     produits: Produit[];
     commandes: Commande[];
     factures: Facture[];
+    paiements?: Paiement[];
+    mouvements?: MouvementStock[];
+    listesVerres?: ListeVerres[];
+    listeItems?: ListeVerreItem[];
+    compteurs?: Compteurs;
   };
 }
 
@@ -25,6 +46,11 @@ export function SauvegardePage() {
   const produits = useAppDataStore((state) => state.produits);
   const commandes = useAppDataStore((state) => state.commandes);
   const factures = useAppDataStore((state) => state.factures);
+  const paiements = useAppDataStore((state) => state.paiements);
+  const mouvements = useAppDataStore((state) => state.mouvements);
+  const listesVerres = useAppDataStore((state) => state.listesVerres);
+  const listeItems = useAppDataStore((state) => state.listeItems);
+  const compteurs = useAppDataStore((state) => state.compteurs);
   const replaceAllData = useAppDataStore((state) => state.replaceAllData);
   const [lastBackup, setLastBackup] = useState<string | null>(() => {
     return localStorage.getItem(BACKUP_KEY);
@@ -49,6 +75,11 @@ export function SauvegardePage() {
           produits,
           commandes,
           factures,
+          paiements,
+          mouvements,
+          listesVerres,
+          listeItems,
+          compteurs,
         },
       };
 
@@ -126,6 +157,11 @@ export function SauvegardePage() {
         produits: data.data.produits,
         commandes: data.data.commandes,
         factures: data.data.factures,
+        paiements: data.data.paiements,
+        mouvements: data.data.mouvements,
+        listesVerres: data.data.listesVerres,
+        listeItems: data.data.listeItems,
+        compteurs: data.data.compteurs,
       });
 
       const backupDate = new Date(data.created_at).toLocaleDateString('fr-FR', {

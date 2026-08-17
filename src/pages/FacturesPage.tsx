@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { 
   Plus, 
@@ -13,9 +14,10 @@ import {
 import { 
   Button, 
   Input, 
-  Card, 
-  Badge, 
+  Card,
+  Badge,
   Modal,
+  Select,
   Table,
   TableHeader,
   TableBody,
@@ -25,16 +27,25 @@ import {
 } from '@/components/ui';
 import { FacturePrintTemplate } from '@/components/factures/FacturePrintTemplate';
 import { formatCurrency, formatDate } from '@/lib/utils';
+import { MODE_PAIEMENT_OPTIONS, STATUT_FACTURE, badgeVariant } from '@/lib/labels';
 import { useAppDataStore } from '@/stores/appDataStore';
-import type { Client, Commande, Facture, FactureStatut, Ordonnance, Produit } from '@/types';
+import type {
+  Client,
+  Commande,
+  Facture,
+  FactureStatut,
+  Ordonnance,
+  PaymentMethod,
+  Produit,
+} from '@/types';
 
-const statusConfig: Record<FactureStatut, { label: string; variant: 'success' | 'warning' | 'danger' | 'default' }> = {
-  DRAFT: { label: 'Brouillon', variant: 'default' },
-  SENT: { label: 'Envoyée', variant: 'warning' },
-  PAID: { label: 'Payée', variant: 'success' },
-  PARTIAL: { label: 'Partielle', variant: 'warning' },
-  OVERDUE: { label: 'En retard', variant: 'danger' },
-  CANCELLED: { label: 'Annulée', variant: 'default' },
+const statusConfig: Record<FactureStatut, { label: string; variant: 'success' | 'warning' | 'danger' | 'default' | 'info' }> = {
+  DRAFT: { label: STATUT_FACTURE.DRAFT.label, variant: badgeVariant(STATUT_FACTURE.DRAFT.ton) },
+  SENT: { label: STATUT_FACTURE.SENT.label, variant: badgeVariant(STATUT_FACTURE.SENT.ton) },
+  PAID: { label: STATUT_FACTURE.PAID.label, variant: badgeVariant(STATUT_FACTURE.PAID.ton) },
+  PARTIAL: { label: STATUT_FACTURE.PARTIAL.label, variant: badgeVariant(STATUT_FACTURE.PARTIAL.ton) },
+  OVERDUE: { label: STATUT_FACTURE.OVERDUE.label, variant: badgeVariant(STATUT_FACTURE.OVERDUE.ton) },
+  CANCELLED: { label: STATUT_FACTURE.CANCELLED.label, variant: badgeVariant(STATUT_FACTURE.CANCELLED.ton) },
 };
 
 type FactureWithClient = Facture & {
@@ -52,7 +63,8 @@ export function FacturesPage() {
   const ordonnances = useAppDataStore((state) => state.ordonnances);
   const produits = useAppDataStore((state) => state.produits);
   const invoices = useAppDataStore((state) => state.factures);
-  const updateFacture = useAppDataStore((state) => state.updateFacture);
+  const enregistrerPaiement = useAppDataStore((state) => state.enregistrerPaiement);
+  const [paymentMode, setPaymentMode] = useState<PaymentMethod>('ESP');
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<FactureStatut | 'all'>('all');
   const [filterUnpaid, setFilterUnpaid] = useState(false);
@@ -133,17 +145,12 @@ export function FacturesPage() {
     const amount = parseFloat(paymentAmount);
     if (isNaN(amount) || amount <= 0) return;
 
-    const target = invoices.find((inv) => inv.id === selectedInvoice.id);
-    if (!target) return;
-    const newPaid = Math.min(target.montant_paye + amount, target.total_ttc);
-    const newStatus: FactureStatut = newPaid >= target.total_ttc ? 'PAID' : 'PARTIAL';
-    updateFacture(selectedInvoice.id, {
-      montant_paye: newPaid,
-      statut: newStatus,
-    });
+    // Chaque encaissement est conserve: date, montant et mode.
+    enregistrerPaiement(selectedInvoice.id, amount, paymentMode);
     setShowPaymentModal(false);
     setSelectedInvoice(null);
     setPaymentAmount('');
+    setPaymentMode('ESP');
   };
 
   return (
@@ -156,10 +163,13 @@ export function FacturesPage() {
             Gérez vos factures et paiements
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle facture
-        </Button>
+        {/* Une facture naît d'une vente: on renvoie au comptoir. */}
+        <Link to="/vente">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle vente
+          </Button>
+        </Link>
       </div>
 
       {/* Stats Cards */}
@@ -230,7 +240,8 @@ export function FacturesPage() {
             >
               Toutes
             </button>
-            {(['PAID', 'PARTIAL', 'SENT', 'OVERDUE'] as FactureStatut[]).map((status) => (
+            {/* OVERDUE ferait doublon avec le filtre «Reste à payer» ci-dessous. */}
+            {(['PAID', 'PARTIAL', 'SENT'] as FactureStatut[]).map((status) => (
               <button
                 key={status}
                 onClick={() => setFilterStatus(filterStatus === status ? 'all' : status)}
@@ -251,7 +262,7 @@ export function FacturesPage() {
                   : 'border-surface-border text-text-secondary hover:bg-cream'
               }`}
             >
-              Impayées
+              Reste à payer
             </button>
           </div>
         </div>
@@ -308,9 +319,11 @@ export function FacturesPage() {
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex items-center justify-end gap-1">
-                      <Button variant="ghost" size="sm" title="Voir">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <Link to={`/clients/${invoice.client_id}`}>
+                        <Button variant="ghost" size="sm" title="Ouvrir la fiche client">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       <Button
                         variant="ghost"
                         size="sm"
@@ -388,6 +401,13 @@ export function FacturesPage() {
               value={paymentAmount}
               onChange={(e) => setPaymentAmount(e.target.value)}
               placeholder="Montant"
+            />
+
+            <Select
+              label="Mode de paiement"
+              value={paymentMode}
+              onChange={(e) => setPaymentMode(e.target.value as PaymentMethod)}
+              options={MODE_PAIEMENT_OPTIONS}
             />
 
             <div className="flex justify-end gap-3 pt-2">

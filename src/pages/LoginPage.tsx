@@ -100,26 +100,40 @@ export function LoginPage() {
             </Button>
           </form>
 
-          {/* Demo credentials hint */}
+          {/* Version d'essai: un clic suffit pour entrer. */}
           <div className="mt-6 pt-4 border-t border-surface-border">
             <p className="text-xs text-text-muted text-center mb-2">
-              Comptes de démonstration:
+              Version d’essai — cliquez pour entrer :
             </p>
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              <div className="p-2 bg-cream border border-surface-border">
-                <p className="font-medium text-text-primary">Admin</p>
-                <p className="text-text-muted">admin / admin123</p>
-              </div>
-              <div className="p-2 bg-cream border border-surface-border">
-                <p className="font-medium text-text-primary">Vendeur</p>
-                <p className="text-text-muted">vendeur / vendeur123</p>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('admin');
+                  setPassword('admin123');
+                }}
+                className="p-2 bg-cream border border-surface-border hover:border-accent transition-colors text-left"
+              >
+                <p className="text-sm font-medium text-text-primary">Responsable</p>
+                <p className="text-xs text-text-muted">Accès complet</p>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setUsername('vendeur');
+                  setPassword('vendeur123');
+                }}
+                className="p-2 bg-cream border border-surface-border hover:border-accent transition-colors text-left"
+              >
+                <p className="text-sm font-medium text-text-primary">Vendeur</p>
+                <p className="text-xs text-text-muted">Comptoir seulement</p>
+              </button>
             </div>
           </div>
         </Card>
 
         <p className="text-xs text-text-muted text-center mt-4">
-          © 2024 OptiVision - Logiciel de gestion d'optique
+          OptiVision — logiciel de gestion d’optique
         </p>
       </div>
     </div>

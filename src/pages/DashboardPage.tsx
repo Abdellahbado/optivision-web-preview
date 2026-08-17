@@ -1,357 +1,307 @@
-import { 
-  TrendingUp, 
-  Users, 
-  ShoppingCart, 
-  Package,
-  Clock,
-  ArrowRight,
-  FileText,
-  CreditCard,
-  Search,
-} from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { Card, CardHeader, CardTitle, CardContent, Badge } from '@/components/ui';
-import { cn, formatCurrency, formatDate } from '@/lib/utils';
 import { useMemo } from 'react';
+import { Link } from 'react-router-dom';
+import {
+  AlertTriangle,
+  ArrowRight,
+  BellRing,
+  Glasses,
+  Package,
+  Phone,
+  Receipt,
+  Search,
+  ShoppingBag,
+  Wallet,
+} from 'lucide-react';
+import { Badge, Card, CardContent, CardHeader, CardTitle } from '@/components/ui';
+import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { STATUT_COMMANDE, badgeVariant } from '@/lib/labels';
 import { useAppDataStore } from '@/stores/appDataStore';
 
-const statusLabels: Record<string, { label: string; variant: 'success' | 'warning' | 'info' | 'primary' | 'default' }> = {
-  NEW: { label: 'Nouvelle', variant: 'default' },
-  ORD: { label: 'Commandée', variant: 'warning' },
-  RCV: { label: 'Reçue', variant: 'info' },
-  ASM: { label: 'Montage', variant: 'primary' },
-  RDY: { label: 'Prête', variant: 'success' },
-  DLV: { label: 'Livrée', variant: 'success' },
-  CAN: { label: 'Annulée', variant: 'default' },
-};
-
+/**
+ * Aujourd'hui: pas un tableau de bord d'analyse, une liste de ce qu'il
+ * reste a faire dans la journee.
+ */
 export function DashboardPage() {
   const clients = useAppDataStore((state) => state.clients);
   const commandes = useAppDataStore((state) => state.commandes);
   const produits = useAppDataStore((state) => state.produits);
   const factures = useAppDataStore((state) => state.factures);
+  const paiements = useAppDataStore((state) => state.paiements);
+  const listesVerres = useAppDataStore((state) => state.listesVerres);
+  const listeItems = useAppDataStore((state) => state.listeItems);
 
-  const stats = useMemo(() => {
-    const now = new Date();
-    const month = now.getMonth();
-    const year = now.getFullYear();
+  const jour = new Date().toISOString().slice(0, 10);
 
-    const facturesMois = factures.filter((f) => {
-      const d = new Date(f.date_facture);
-      return d.getMonth() === month && d.getFullYear() === year;
-    });
-    const facturesMoisPrecedent = factures.filter((f) => {
-      const d = new Date(f.date_facture);
-      const prevMonthDate = new Date(year, month - 1, 1);
-      return d.getMonth() === prevMonthDate.getMonth() && d.getFullYear() === prevMonthDate.getFullYear();
-    });
+  const donnees = useMemo(() => {
+    const encaisseAujourdhui = paiements
+      .filter((paiement) => paiement.date.slice(0, 10) === jour)
+      .reduce((somme, paiement) => somme + paiement.montant, 0);
 
-    const caMois = facturesMois.reduce((sum, f) => sum + f.total_ttc, 0);
-    const caMoisPrecedent = facturesMoisPrecedent.reduce((sum, f) => sum + f.total_ttc, 0);
-    const facturesImpayees = factures.filter((f) => f.montant_paye < f.total_ttc);
-    const montantImpaye = facturesImpayees.reduce((sum, f) => sum + (f.total_ttc - f.montant_paye), 0);
+    const aPrevenir = commandes
+      .filter((commande) => commande.statut === 'RDY')
+      .map((commande) => ({
+        commande,
+        client: clients.find((item) => item.id === commande.client_id),
+      }));
+
+    const enRetard = commandes.filter(
+      (commande) =>
+        !['DLV', 'CAN'].includes(commande.statut) &&
+        commande.date_livraison_prevue &&
+        commande.date_livraison_prevue < jour
+    );
+
+    const listeDuJour = listesVerres.find((liste) => liste.date === jour);
+    const verresACommander = listeDuJour
+      ? listeItems.filter((item) => item.liste_id === listeDuJour.id && !item.en_stock)
+      : [];
+
+    const impayees = factures.filter(
+      (facture) => facture.statut !== 'CANCELLED' && facture.montant_paye < facture.total_ttc
+    );
+
+    const stockBas = produits.filter(
+      (produit) => produit.actif && produit.quantite <= produit.stock_minimum
+    );
 
     return {
-      clients_total: clients.length,
-      clients_nouveaux_mois: clients.filter((c) => {
-        const d = new Date(c.created_at);
-        return d.getMonth() === month && d.getFullYear() === year;
-      }).length,
-      commandes_en_cours: commandes.filter((c) => !['DLV', 'CAN'].includes(c.statut)).length,
-      commandes_pret: commandes.filter((c) => c.statut === 'RDY').length,
-      ca_mois: caMois,
-      ca_mois_precedent: caMoisPrecedent,
-      factures_impayees: facturesImpayees.length,
-      montant_impaye: montantImpaye,
-      produits_stock_bas: produits.filter((p) => p.quantite <= p.stock_minimum).length,
+      encaisseAujourdhui,
+      aPrevenir,
+      enRetard,
+      verresACommander,
+      impayees,
+      montantImpaye: impayees.reduce(
+        (somme, facture) => somme + (facture.total_ttc - facture.montant_paye),
+        0
+      ),
+      stockBas,
+      enCours: commandes.filter((commande) => !['DLV', 'CAN'].includes(commande.statut)).length,
     };
-  }, [clients, commandes, produits, factures]);
-
-  const recentCustomers = useMemo(
-    () =>
-      [...clients]
-        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
-        .slice(0, 4)
-        .map((c) => ({
-          id: c.id,
-          code: c.code,
-          name: `${c.prenom} ${c.nom}`,
-          phone: c.telephone,
-          date: c.created_at,
-        })),
-    [clients]
-  );
-
-  const pendingOrders = useMemo(
-    () =>
-      [...commandes]
-        .filter((c) => !['DLV', 'CAN'].includes(c.statut))
-        .sort((a, b) => new Date(b.date_commande).getTime() - new Date(a.date_commande).getTime())
-        .slice(0, 4)
-        .map((cmd) => {
-          const client = clients.find((c) => c.id === cmd.client_id);
-          return {
-            id: cmd.id,
-            numero: cmd.numero,
-            customer: client ? `${client.prenom} ${client.nom}` : 'Client inconnu',
-            status: cmd.statut,
-            date: cmd.date_commande,
-            amount: cmd.total_ttc,
-          };
-        }),
-    [commandes, clients]
-  );
-
-  const lowStockProducts = useMemo(
-    () =>
-      produits
-        .filter((p) => p.quantite <= p.stock_minimum)
-        .slice(0, 3)
-        .map((p) => ({
-          id: p.id,
-          name: p.nom,
-          stock: p.quantite,
-          min: p.stock_minimum,
-          critical: p.quantite <= Math.floor(p.stock_minimum / 2),
-        })),
-    [produits]
-  );
-
-  const percentChange = stats.ca_mois_precedent > 0 
-    ? ((stats.ca_mois - stats.ca_mois_precedent) / stats.ca_mois_precedent * 100).toFixed(1)
-    : '0';
+  }, [clients, commandes, produits, factures, paiements, listesVerres, listeItems, jour]);
 
   return (
-    <div className="space-y-8">
-      {/* Page Header */}
-      <div>
-        <h1 className="text-2xl font-semibold text-text-primary">
-          Accueil
-        </h1>
-        <p className="text-text-secondary mt-1">
-          Les actions importantes du magasin aujourd'hui
-        </p>
+    <div className="space-y-6">
+      <div className="flex flex-col gap-1 md:flex-row md:items-end md:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-text-primary">Aujourd’hui</h1>
+          <p className="text-text-secondary mt-1 capitalize">
+            {new Date().toLocaleDateString('fr-FR', {
+              weekday: 'long',
+              day: 'numeric',
+              month: 'long',
+              year: 'numeric',
+            })}
+          </p>
+        </div>
       </div>
 
+      {/* Actions du comptoir */}
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
-        <QuickAction to="/accueil-client" icon={ShoppingCart} title="Nouvelle vente" description="Client, ordonnance, produits et facture" />
-        <QuickAction to="/recherche-stock" icon={Search} title="Chercher stock" description="Vérifier verres et montures disponibles" />
-        <QuickAction to="/commandes" icon={Clock} title="Suivre commandes" description="Voir montage, prêt et livraison" />
-        <QuickAction to="/factures" icon={CreditCard} title="Paiements" description="Factures payées, partielles et impayées" />
+        <QuickAction
+          to="/vente"
+          icon={ShoppingBag}
+          title="Nouvelle vente"
+          description="Client, correction, articles, facture"
+        />
+        <QuickAction
+          to="/stock"
+          icon={Search}
+          title="Chercher un verre"
+          description="Vérifier ce qui est disponible"
+        />
+        <QuickAction
+          to="/commandes"
+          icon={Glasses}
+          title="Commandes"
+          description="Montage, prêtes, livrées"
+        />
+        <QuickAction
+          to="/argent"
+          icon={Wallet}
+          title="Caisse et factures"
+          description="Encaisser et suivre les impayés"
+        />
       </div>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      {/* Les chiffres du jour */}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="CA du mois"
-          value={formatCurrency(stats.ca_mois)}
-          subtitle={`${Number(percentChange) >= 0 ? '+' : ''}${percentChange}% vs mois précédent`}
-          icon={TrendingUp}
-          color="accent"
-        />
-        <StatCard
-          title="Clients"
-          value={stats.clients_total.toString()}
-          subtitle={`${stats.clients_nouveaux_mois} nouveaux ce mois`}
-          icon={Users}
+          title="Encaissé aujourd’hui"
+          value={formatCurrency(donnees.encaisseAujourdhui)}
+          icon={Wallet}
           color="success"
-          link="/clients"
+          link="/argent"
         />
         <StatCard
-          title="Commandes en cours"
-          value={stats.commandes_en_cours.toString()}
-          subtitle={`${stats.commandes_pret} prête(s) à livrer`}
-          icon={ShoppingCart}
+          title="Clients à prévenir"
+          value={donnees.aPrevenir.length.toString()}
+          subtitle="lunettes prêtes"
+          icon={BellRing}
+          color="accent"
+          link="/commandes"
+        />
+        <StatCard
+          title="Verres à commander"
+          value={donnees.verresACommander.length.toString()}
+          subtitle="sur le bon du jour"
+          icon={Glasses}
           color="warning"
           link="/commandes"
         />
         <StatCard
           title="Impayés"
-          value={formatCurrency(stats.montant_impaye)}
-          subtitle={`${stats.factures_impayees} facture(s)`}
-          icon={CreditCard}
+          value={formatCurrency(donnees.montantImpaye)}
+          subtitle={`${donnees.impayees.length} facture(s)`}
+          icon={Receipt}
           color="danger"
-          link="/factures?filter=unpaid"
+          link="/argent"
         />
       </div>
 
-      {/* Content Grid */}
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        {/* Recent Customers */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
+        {/* Appels a passer */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <Users className="h-5 w-5 text-accent" />
-              Derniers clients
-            </CardTitle>
-            <Link
-              to="/clients"
-              className="text-sm text-accent hover:opacity-80 flex items-center gap-1"
-            >
-              Voir tous <ArrowRight className="h-4 w-4" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              {recentCustomers.map((customer) => (
-                <Link
-                  key={customer.id}
-                  to="/clients"
-                  className="flex items-center justify-between p-3 rounded-[10px] hover:bg-cream transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-text-primary">
-                      {customer.name}
-                    </p>
-                    <p className="text-sm text-text-secondary">
-                      {customer.phone}
-                    </p>
-                  </div>
-                  <span className="text-xs text-text-muted">{customer.code}</span>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Pending Orders */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Clock className="h-5 w-5 text-warning" />
-              Commandes en cours
+              <Phone className="h-5 w-5 text-accent" />
+              À prévenir : la commande est prête
             </CardTitle>
             <Link
               to="/commandes"
               className="text-sm text-accent hover:opacity-80 flex items-center gap-1"
             >
-              Voir toutes <ArrowRight className="h-4 w-4" />
+              Tout voir <ArrowRight className="h-4 w-4" />
             </Link>
           </CardHeader>
           <CardContent>
-            <div className="space-y-2">
-              {pendingOrders.map((order) => (
-                <Link
-                  key={order.id}
-                  to="/commandes"
-                  className="flex items-center justify-between p-3 rounded-[10px] hover:bg-cream transition-colors"
-                >
-                  <div>
-                    <p className="font-medium text-text-primary">
-                      {order.customer}
-                    </p>
-                    <p className="text-sm text-text-secondary">
-                      {order.numero} - {formatDate(order.date)}
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <Badge variant={statusLabels[order.status].variant}>
-                      {statusLabels[order.status].label}
-                    </Badge>
-                    <p className="text-sm font-medium text-text-secondary mt-1">
-                      {formatCurrency(order.amount)}
-                    </p>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Low Stock Alert */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Package className="h-5 w-5 text-danger" />
-              Alertes stock
-              {stats.produits_stock_bas > 0 && (
-                <Badge variant="danger">{stats.produits_stock_bas}</Badge>
-              )}
-            </CardTitle>
-            <Link
-              to="/produits?filter=low-stock"
-              className="text-sm text-accent hover:opacity-80 flex items-center gap-1"
-            >
-              Voir tous <ArrowRight className="h-4 w-4" />
-            </Link>
-          </CardHeader>
-          <CardContent>
-            {lowStockProducts.length > 0 ? (
+            {donnees.aPrevenir.length === 0 ? (
+              <p className="text-sm text-text-muted py-2">
+                Personne à appeler pour le moment.
+              </p>
+            ) : (
               <div className="space-y-2">
-                {lowStockProducts.map((product) => (
-                  <div 
-                    key={product.id}
-                    className={cn(
-                      "flex items-center justify-between p-3 rounded-[10px]",
-                      product.critical 
-                        ? "bg-danger-light" 
-                        : "bg-warning-light"
-                    )}
+                {donnees.aPrevenir.slice(0, 5).map(({ commande, client }) => (
+                  <Link
+                    key={commande.id}
+                    to={client ? `/clients/${client.id}` : '/commandes'}
+                    className="flex items-center justify-between p-3 bg-success-light hover:opacity-90 transition-opacity"
                   >
                     <div>
                       <p className="font-medium text-text-primary">
-                        {product.name}
+                        {client ? `${client.prenom} ${client.nom}` : 'Client inconnu'}
                       </p>
-                      <p className={cn(
-                        "text-sm",
-                        product.critical ? "text-danger" : "text-warning"
-                      )}>
-                        Stock: {product.stock} (min: {product.min})
+                      <p className="text-sm text-text-secondary">
+                        {client?.telephone} • {commande.numero}
                       </p>
                     </div>
-                    <Badge variant={product.critical ? "danger" : "warning"}>
-                      {product.critical ? 'Critique' : 'Faible'}
-                    </Badge>
-                  </div>
+                    <span className="text-sm font-medium text-success">
+                      {formatCurrency(commande.total_ttc)}
+                    </span>
+                  </Link>
                 ))}
               </div>
-            ) : (
-              <p className="text-center text-text-secondary py-4">
-                Aucune alerte de stock
-              </p>
             )}
           </CardContent>
         </Card>
 
-        {/* Quick Actions */}
+        {/* Commandes en retard */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <FileText className="h-5 w-5 text-info" />
-              Actions rapides
+              <AlertTriangle className="h-5 w-5 text-warning" />
+              Livraison dépassée
+              {donnees.enRetard.length > 0 && (
+                <Badge variant="danger">{donnees.enRetard.length}</Badge>
+              )}
             </CardTitle>
+            <Link
+              to="/commandes"
+              className="text-sm text-accent hover:opacity-80 flex items-center gap-1"
+            >
+              Tout voir <ArrowRight className="h-4 w-4" />
+            </Link>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-3">
-              <Link
-                to="/accueil-client"
-                className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
-              >
-                <ShoppingCart className="h-6 w-6 text-accent mb-2" />
-                <span className="text-sm font-medium text-text-primary">Nouvelle vente</span>
-              </Link>
-              <Link
-                to="/recherche-stock"
-                className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
-              >
-                <Search className="h-6 w-6 text-warning mb-2" />
-                <span className="text-sm font-medium text-text-primary">Recherche stock</span>
-              </Link>
-              <Link
-                to="/liste-verres"
-                className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
-              >
-                <FileText className="h-6 w-6 text-success mb-2" />
-                <span className="text-sm font-medium text-text-primary">Liste verres</span>
-              </Link>
-              <Link
-                to="/rapports"
-                className="flex flex-col items-center justify-center p-4 rounded-[10px] border border-surface-border hover:bg-cream transition-colors"
-              >
-                <TrendingUp className="h-6 w-6 text-info mb-2" />
-                <span className="text-sm font-medium text-text-primary">Rapports</span>
-              </Link>
-            </div>
+            {donnees.enRetard.length === 0 ? (
+              <p className="text-sm text-text-muted py-2">
+                {donnees.enCours} commande(s) en cours, aucune en retard.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {donnees.enRetard.slice(0, 5).map((commande) => {
+                  const client = clients.find((item) => item.id === commande.client_id);
+                  return (
+                    <div
+                      key={commande.id}
+                      className="flex items-center justify-between p-3 bg-warning-light"
+                    >
+                      <div>
+                        <p className="font-medium text-text-primary">
+                          {client ? `${client.prenom} ${client.nom}` : 'Client inconnu'}
+                        </p>
+                        <p className="text-sm text-text-secondary">
+                          prévue le {formatDate(commande.date_livraison_prevue!)}
+                        </p>
+                      </div>
+                      <Badge variant={badgeVariant(STATUT_COMMANDE[commande.statut].ton)}>
+                        {STATUT_COMMANDE[commande.statut].court}
+                      </Badge>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Stock bas */}
+        <Card className="lg:col-span-2">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Package className="h-5 w-5 text-danger" />
+              Stock à réapprovisionner
+              {donnees.stockBas.length > 0 && (
+                <Badge variant="danger">{donnees.stockBas.length}</Badge>
+              )}
+            </CardTitle>
+            <Link
+              to="/stock"
+              className="text-sm text-accent hover:opacity-80 flex items-center gap-1"
+            >
+              Ouvrir le stock <ArrowRight className="h-4 w-4" />
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {donnees.stockBas.length === 0 ? (
+              <p className="text-sm text-text-muted py-2">Aucune alerte de stock.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                {donnees.stockBas.slice(0, 6).map((produit) => {
+                  const critique = produit.quantite <= Math.floor(produit.stock_minimum / 2);
+                  return (
+                    <div
+                      key={produit.id}
+                      className={cn(
+                        'flex items-center justify-between p-3',
+                        critique ? 'bg-danger-light' : 'bg-warning-light'
+                      )}
+                    >
+                      <div className="min-w-0">
+                        <p className="font-medium text-text-primary truncate">{produit.nom}</p>
+                        <p
+                          className={cn(
+                            'text-sm',
+                            critique ? 'text-danger' : 'text-warning'
+                          )}
+                        >
+                          Reste {produit.quantite} (seuil {produit.stock_minimum})
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </CardContent>
         </Card>
       </div>
@@ -403,23 +353,20 @@ function StatCard({ title, value, subtitle, icon: Icon, color, link }: StatCardP
   const content = (
     <Card className={cn(link && 'hover:border-accent/30 transition-colors cursor-pointer')}>
       <CardContent className="flex items-center gap-4">
-        <div className={cn('p-3 rounded-[10px]', colorClasses[color])}>
+        <div className={cn('p-3', colorClasses[color])}>
           <Icon className="h-6 w-6" />
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium text-text-secondary">{title}</p>
-          <p className="text-2xl font-semibold text-text-primary truncate">{value}</p>
-          {subtitle && (
-            <p className="text-xs text-text-muted truncate">{subtitle}</p>
-          )}
+          {/* Les montants en dinars sont longs: on les laisse respirer. */}
+          <p className="text-xl xl:text-2xl font-semibold text-text-primary leading-tight">
+            {value}
+          </p>
+          {subtitle && <p className="text-xs text-text-muted truncate">{subtitle}</p>}
         </div>
       </CardContent>
     </Card>
   );
 
-  if (link) {
-    return <Link to={link}>{content}</Link>;
-  }
-
-  return content;
+  return link ? <Link to={link}>{content}</Link> : content;
 }

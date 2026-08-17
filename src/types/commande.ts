@@ -5,7 +5,11 @@ export interface Commande {
   numero: string;
   client_id: number;
   ordonnance_id?: number;
+  /** Lignes de la vente: monture, verre OD, verre OG, accessoires, services. */
+  lignes?: CommandeLigne[];
+  /** @deprecated conserve pour les commandes creees avant le passage aux lignes. */
   monture_id?: number;
+  /** @deprecated conserve pour les commandes creees avant le passage aux lignes. */
   verre_id?: number;
   date_commande: string;
   date_livraison_prevue?: string;
@@ -29,7 +33,22 @@ export interface CommandeWithClient extends Commande {
 
 export type CommandeInput = Omit<Commande, 'id' | 'numero' | 'created_at' | 'updated_at'>;
 
-export type LigneType = 'MONTURE' | 'VERRE_OD' | 'VERRE_OG' | 'ACCESSOIRE' | 'SERVICE';
+export type LigneType =
+  | 'MONTURE'
+  | 'VERRE_OD'
+  | 'VERRE_OG'
+  | 'LENTILLE'
+  | 'ACCESSOIRE'
+  | 'SERVICE';
+
+export const LIGNE_LABELS: Record<LigneType, string> = {
+  MONTURE: 'Monture',
+  VERRE_OD: 'Verre œil droit',
+  VERRE_OG: 'Verre œil gauche',
+  LENTILLE: 'Lentilles',
+  ACCESSOIRE: 'Accessoire',
+  SERVICE: 'Service',
+};
 
 export interface CommandeLigne {
   id: number;
@@ -37,6 +56,8 @@ export interface CommandeLigne {
   produit_id?: number;
   description: string;
   type: LigneType;
+  /** Vrai quand le produit n'etait pas en stock: la ligne part chez le fournisseur. */
+  a_commander?: boolean;
   quantite: number;
   prix_unitaire: number;        // Sale price per unit
   prix_achat_unitaire?: number; // Purchase price per unit (for profit tracking)

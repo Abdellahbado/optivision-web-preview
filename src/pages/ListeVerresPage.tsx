@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { 
   Button, 
   Card, 
@@ -12,120 +12,102 @@ import {
   Modal, 
   Textarea 
 } from '@/components/ui';
-import { 
-  deleteListeItemWeb,
-  getListeByIdWeb,
-  getListesWeb,
-  getOrCreateTodayListWeb,
-  groupLensItemsWeb,
-  populateListeFromOrdersWeb,
-  updateListeItemWeb,
-  updateListeStatutWeb,
-} from '@/lib/web/listeVerresWeb';
-import type { ListeVerres, ListeVerreItem, ListeVerresWithItems, GroupedLensItem } from '@/types';
+import { groupLensItems, synchroniserListeDepuisCommandes } from '@/lib/verresACommander';
+import { useAppDataStore } from '@/stores/appDataStore';
+import type { ListeVerres, ListeVerreItem, ListeVerresWithItems } from '@/types';
 
 export function ListeVerresPage() {
-  const [listes, setListes] = useState<ListeVerres[]>([]);
-  const [currentListe, setCurrentListe] = useState<ListeVerresWithItems | null>(null);
-  const [loading, setLoading] = useState(true);
+  const listesVerres = useAppDataStore((state) => state.listesVerres);
+  const listeItems = useAppDataStore((state) => state.listeItems);
+  const hydrated = useAppDataStore((state) => state.hydrated);
+  const getOrCreateListeDuJour = useAppDataStore((state) => state.getOrCreateListeDuJour);
+  const updateListeItem = useAppDataStore((state) => state.updateListeItem);
+  const deleteListeItem = useAppDataStore((state) => state.deleteListeItem);
+  const updateListeStatut = useAppDataStore((state) => state.updateListeStatut);
+
+  const [selectedListeId, setSelectedListeId] = useState<number | null>(null);
   const [showHistory, setShowHistory] = useState(false);
-  const [groupedItems, setGroupedItems] = useState<GroupedLensItem[]>([]);
   const [showPrintView, setShowPrintView] = useState(false);
   const [showStatusModal, setShowStatusModal] = useState(false);
   const [statusNotes, setStatusNotes] = useState('');
 
-  const loadTodayList = useCallback(async () => {
-    try {
-      setLoading(true);
-      const liste = await getOrCreateTodayListWeb();
-      const listeWithItems = await getListeByIdWeb(liste.id);
-      setCurrentListe(listeWithItems);
-      if (listeWithItems) {
-        setGroupedItems(groupLensItemsWeb(listeWithItems.items));
-      }
-    } catch (error) {
-      console.error('Error loading today list:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const loading = !hydrated;
 
-  const loadHistory = useCallback(async () => {
-    try {
-      const allListes = await getListesWeb();
-      setListes(allListes);
-    } catch (error) {
-      console.error('Error loading history:', error);
-    }
-  }, []);
-
+  // La liste du jour est creee au premier affichage puis reste selectionnee.
   useEffect(() => {
-    loadTodayList();
-    loadHistory();
-  }, [loadTodayList, loadHistory]);
+    if (!hydrated) return;
+    if (selectedListeId === null) {
+      setSelectedListeId(getOrCreateListeDuJour().id);
+    }
+  }, [hydrated, selectedListeId, getOrCreateListeDuJour]);
 
-  const handleRefreshFromOrders = async () => {
+  const listes: ListeVerres[] = useMemo(
+    () =>
+      listesVerres
+        .map((liste) => {
+          const items = listeItems.filter((item) => item.liste_id === liste.id);
+          return {
+            ...liste,
+            items_count: items.length,
+            items_en_stock: items.filter((item) => item.en_stock).length,
+          };
+        })
+        .sort((a, b) => b.date.localeCompare(a.date)),
+    [listesVerres, listeItems]
+  );
+
+  const currentListe: ListeVerresWithItems | null = useMemo(() => {
+    const liste = listes.find((item) => item.id === selectedListeId);
+    if (!liste) return null;
+    return {
+      ...liste,
+      items: listeItems
+        .filter((item) => item.liste_id === liste.id)
+        .sort((a, b) => {
+          const clientA = a.client_nom || '';
+          const clientB = b.client_nom || '';
+          if (clientA !== clientB) return clientA.localeCompare(clientB);
+          return a.oeil.localeCompare(b.oeil);
+        }),
+    };
+  }, [listes, listeItems, selectedListeId]);
+
+  const groupedItems = useMemo(
+    () => (currentListe ? groupLensItems(currentListe.items) : []),
+    [currentListe]
+  );
+
+  const loadTodayList = () => setSelectedListeId(getOrCreateListeDuJour().id);
+
+  const handleRefreshFromOrders = () => {
     if (!currentListe) return;
-    
-    try {
-      const addedCount = await populateListeFromOrdersWeb(currentListe.id, currentListe.date);
-      if (addedCount > 0) {
-        await loadTodayList();
-        alert(`${addedCount} verre(s) ajouté(s) depuis les commandes du jour.`);
-      } else {
-        alert('Aucun nouveau verre à ajouter.');
-      }
-    } catch (error) {
-      console.error('Error refreshing from orders:', error);
-      alert('Erreur lors de la mise à jour.');
-    }
+    const ajoutes = synchroniserListeDepuisCommandes(currentListe.id, currentListe.date);
+    alert(
+      ajoutes > 0
+        ? `${ajoutes} verre(s) ajouté(s) depuis les commandes du jour.`
+        : 'Aucun nouveau verre à ajouter.'
+    );
   };
 
-  const handleToggleInStock = async (item: ListeVerreItem) => {
-    try {
-      await updateListeItemWeb(item.id, { en_stock: !item.en_stock });
-      await loadTodayList();
-    } catch (error) {
-      console.error('Error updating item:', error);
-    }
+  const handleToggleInStock = (item: ListeVerreItem) => {
+    updateListeItem(item.id, { en_stock: !item.en_stock });
   };
 
-  const handleDeleteItem = async (itemId: number) => {
+  const handleDeleteItem = (itemId: number) => {
     if (!confirm('Supprimer cet élément de la liste?')) return;
-    
-    try {
-      await deleteListeItemWeb(itemId);
-      await loadTodayList();
-    } catch (error) {
-      console.error('Error deleting item:', error);
-    }
+    deleteListeItem(itemId);
   };
 
-  const handleUpdateStatus = async (newStatus: 'ENVOYEE' | 'RECUE') => {
+  const handleUpdateStatus = (newStatus: 'ENVOYEE' | 'RECUE') => {
     if (!currentListe) return;
-    
-    try {
-      await updateListeStatutWeb(currentListe.id, newStatus, statusNotes);
-      setShowStatusModal(false);
-      setStatusNotes('');
-      await loadTodayList();
-      await loadHistory();
-    } catch (error) {
-      console.error('Error updating status:', error);
-    }
+    updateListeStatut(currentListe.id, newStatus, statusNotes);
+    setShowStatusModal(false);
+    setStatusNotes('');
   };
 
-  const handleLoadHistoryList = async (id: number) => {
-    try {
-      const liste = await getListeByIdWeb(id);
-      setCurrentListe(liste);
-      if (liste) {
-        setGroupedItems(groupLensItemsWeb(liste.items));
-      }
-      setShowHistory(false);
-    } catch (error) {
-      console.error('Error loading list:', error);
-    }
+  const handleLoadHistoryList = (id: number) => {
+    setSelectedListeId(id);
+    setShowHistory(false);
   };
 
   const formatDate = (dateStr: string) => {

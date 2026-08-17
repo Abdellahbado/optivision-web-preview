@@ -4,6 +4,7 @@ export * from './produit';
 export * from './commande';
 export * from './facture';
 export * from './listeVerres';
+export * from './vente';
 export * from './auth';
 
 // Dashboard stats type

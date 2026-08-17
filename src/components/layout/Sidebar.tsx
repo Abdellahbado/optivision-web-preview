@@ -1,22 +1,24 @@
+import { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { useAuthStore } from '@/stores/authStore';
 import { hasPermission } from '@/types';
 import {
-  LayoutDashboard,
-  UserRoundSearch,
-  Users,
-  Package,
-  ShoppingCart,
-  Receipt,
   BarChart3,
-  Settings,
-  Database,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
+  Database,
   LogOut,
+  Package,
+  Receipt,
+  Settings,
   Shield,
+  ShoppingBag,
+  Sun,
   User,
+  Users,
+  Wrench,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -24,36 +26,48 @@ interface SidebarProps {
   onToggle: () => void;
 }
 
+/**
+ * Six entrees, dans l'ordre de la journee.
+ * Tout le reste vit dans des onglets a l'interieur de ces pages.
+ */
 const menuItems = [
-  { to: '/', icon: LayoutDashboard, label: 'Accueil' },
-  { to: '/accueil-client', icon: UserRoundSearch, label: 'Vente client' },
+  { to: '/', icon: Sun, label: "Aujourd'hui", end: true },
+  { to: '/vente', icon: ShoppingBag, label: 'Nouvelle vente' },
   { to: '/clients', icon: Users, label: 'Clients' },
-  { to: '/produits', icon: Package, label: 'Stock' },
-  { to: '/commandes', icon: ShoppingCart, label: 'Commandes' },
-  { to: '/factures', icon: Receipt, label: 'Factures' },
+  { to: '/commandes', icon: Wrench, label: 'Commandes' },
+  { to: '/stock', icon: Package, label: 'Stock' },
+  { to: '/argent', icon: Receipt, label: 'Argent' },
 ];
 
-// Admin-only menu items
 const adminMenuItems = [
   { to: '/rapports', icon: BarChart3, label: 'Rapports', permission: 'canAccessReports' as const },
   { to: '/sauvegarde', icon: Database, label: 'Sauvegarde', permission: 'canAccessBackup' as const },
   { to: '/parametres', icon: Settings, label: 'Paramètres', permission: 'canAccessSettings' as const },
 ];
 
+const lienClasses = (isActive: boolean, collapsed: boolean) =>
+  cn(
+    'flex items-center h-10 px-2 text-sm font-medium transition-colors',
+    'hover:bg-accent-light',
+    isActive
+      ? 'bg-accent-light text-accent border-l-2 border-accent'
+      : 'text-text-secondary border-l-2 border-transparent',
+    collapsed && 'justify-center px-0 border-l-0'
+  );
+
 export function Sidebar({ collapsed, onToggle }: SidebarProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuthStore();
-  const userRole = user?.role;
+  const [adminOuvert, setAdminOuvert] = useState(false);
+
+  const visibleAdminItems = adminMenuItems.filter((item) =>
+    hasPermission(user?.role, item.permission)
+  );
 
   const handleLogout = () => {
     logout();
     navigate('/login');
   };
-
-  // Filter admin items based on permissions
-  const visibleAdminItems = adminMenuItems.filter(
-    (item) => hasPermission(userRole, item.permission)
-  );
 
   return (
     <aside
@@ -63,13 +77,12 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         collapsed ? 'w-16' : 'w-[220px]'
       )}
     >
-      {/* Logo */}
       <div className="flex h-14 items-center border-b border-surface-border px-3">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="h-9 w-9 bg-accent flex items-center justify-center flex-shrink-0">
             <span className="text-white font-bold text-sm">OV</span>
           </div>
-          <span 
+          <span
             className={cn(
               'text-sm font-semibold text-text-primary whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
               collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
@@ -80,34 +93,20 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex flex-col h-[calc(100vh-3.5rem)] justify-between py-2">
         <div className="space-y-0.5 px-2">
-          {!collapsed && (
-            <p className="px-2 pb-1 pt-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Travail
-            </p>
-          )}
           {menuItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center h-10 px-2 text-sm font-medium transition-colors',
-                  'hover:bg-accent-light',
-                  isActive
-                    ? 'bg-accent-light text-accent border-l-2 border-accent'
-                    : 'text-text-secondary border-l-2 border-transparent',
-                  collapsed && 'justify-center px-0 border-l-0'
-                )
-              }
+              end={item.end}
+              className={({ isActive }) => lienClasses(isActive, collapsed)}
               title={collapsed ? item.label : undefined}
             >
               <div className="w-9 flex items-center justify-center flex-shrink-0">
                 <item.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
               </div>
-              <span 
+              <span
                 className={cn(
                   'whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
                   collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
@@ -120,19 +119,13 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
         </div>
 
         <div className="space-y-0.5 px-2 border-t border-surface-border pt-2">
-          {visibleAdminItems.length > 0 && !collapsed && (
-            <p className="px-2 pb-1 text-[10px] font-semibold uppercase tracking-wide text-text-muted">
-              Administration
-            </p>
-          )}
-          {/* User info */}
           {user && (
             <div
               className={cn(
                 'flex items-center h-10 px-2 text-sm',
                 collapsed && 'justify-center px-0'
               )}
-              title={collapsed ? `${user.prenom} ${user.nom} (${user.role})` : undefined}
+              title={collapsed ? `${user.prenom} ${user.nom}` : undefined}
             >
               <div className="w-9 flex items-center justify-center flex-shrink-0">
                 {user.role === 'admin' ? (
@@ -155,38 +148,56 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </div>
           )}
 
-          {/* Admin-only menu items */}
-          {visibleAdminItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              className={({ isActive }) =>
-                cn(
-                  'flex items-center h-10 px-2 text-sm font-medium transition-colors',
-                  'hover:bg-accent-light',
-                  isActive
-                    ? 'bg-accent-light text-accent border-l-2 border-accent'
-                    : 'text-text-secondary border-l-2 border-transparent',
-                  collapsed && 'justify-center px-0 border-l-0'
-                )
-              }
-              title={collapsed ? item.label : undefined}
-            >
-              <div className="w-9 flex items-center justify-center flex-shrink-0">
-                <item.icon className="h-[18px] w-[18px]" strokeWidth={1.75} />
-              </div>
-              <span 
+          {/* Administration: repliee par defaut, invisible pour un vendeur */}
+          {visibleAdminItems.length > 0 && (
+            <>
+              <button
+                onClick={() => (collapsed ? onToggle() : setAdminOuvert((open) => !open))}
                 className={cn(
-                  'whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
-                  collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
+                  'flex items-center w-full h-10 px-2 text-sm font-medium transition-colors',
+                  'text-text-secondary hover:bg-cream border-l-2 border-transparent',
+                  collapsed && 'justify-center px-0 border-l-0'
                 )}
+                title={collapsed ? 'Administration' : undefined}
               >
-                {item.label}
-              </span>
-            </NavLink>
-          ))}
+                <div className="w-9 flex items-center justify-center flex-shrink-0">
+                  <Settings className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </div>
+                <span
+                  className={cn(
+                    'flex-1 text-left whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
+                    collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
+                  )}
+                >
+                  Administration
+                </span>
+                {!collapsed &&
+                  (adminOuvert ? (
+                    <ChevronDown className="h-4 w-4" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4" />
+                  ))}
+              </button>
 
-          {/* Logout button */}
+              {adminOuvert &&
+                !collapsed &&
+                visibleAdminItems.map((item) => (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    className={({ isActive }) =>
+                      cn(lienClasses(isActive, collapsed), 'pl-4 text-[13px]')
+                    }
+                  >
+                    <div className="w-9 flex items-center justify-center flex-shrink-0">
+                      <item.icon className="h-4 w-4" strokeWidth={1.75} />
+                    </div>
+                    <span>{item.label}</span>
+                  </NavLink>
+                ))}
+            </>
+          )}
+
           <button
             onClick={handleLogout}
             className={cn(
@@ -199,7 +210,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             <div className="w-9 flex items-center justify-center flex-shrink-0">
               <LogOut className="h-[18px] w-[18px]" strokeWidth={1.75} />
             </div>
-            <span 
+            <span
               className={cn(
                 'whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
                 collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'
@@ -209,7 +220,6 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
             </span>
           </button>
 
-          {/* Collapse Toggle */}
           <button
             onClick={onToggle}
             className={cn(
@@ -225,7 +235,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
                 <ChevronLeft className="h-[18px] w-[18px]" strokeWidth={1.75} />
               )}
             </div>
-            <span 
+            <span
               className={cn(
                 'whitespace-nowrap overflow-hidden transition-[opacity,width] duration-200',
                 collapsed ? 'w-0 opacity-0' : 'w-auto opacity-100'

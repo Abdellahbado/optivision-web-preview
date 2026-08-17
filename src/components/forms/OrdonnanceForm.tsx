@@ -78,7 +78,12 @@ export function OrdonnanceForm({ isOpen, onClose, onSubmit, clientId, clientName
   };
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Nouvelle ordonnance" size="xl">
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={initialData ? 'Modifier ordonnance' : 'Nouvelle ordonnance'}
+      size="xl"
+    >
       <form onSubmit={handleSubmit} className="space-y-6">
         {error && (
           <div className="p-3 rounded-[10px] bg-danger-light text-danger text-sm">
@@ -244,7 +249,7 @@ export function OrdonnanceForm({ isOpen, onClose, onSubmit, clientId, clientName
             Annuler
           </Button>
           <Button type="submit" disabled={loading}>
-            {loading ? 'Enregistrement...' : 'Enregistrer'}
+            {loading ? 'Enregistrement...' : initialData ? 'Enregistrer les modifications' : 'Enregistrer'}
           </Button>
         </div>
       </form>

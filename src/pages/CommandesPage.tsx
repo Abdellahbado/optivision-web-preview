@@ -1,18 +1,21 @@
+import { Link } from 'react-router-dom';
 import { useState, useMemo } from 'react';
 import { Plus, Search, List, LayoutGrid, ChevronRight, Eye, ArrowRight } from 'lucide-react';
 import { Button, Input, Card, Badge, Modal, Select } from '@/components/ui';
 import { cn, formatCurrency, formatDate } from '@/lib/utils';
+import { STATUT_COMMANDE } from '@/lib/labels';
 import { useAppDataStore } from '@/stores/appDataStore';
 import type { Commande, CommandeStatut } from '@/types';
 
+// Le vocabulaire vient d'un seul endroit: src/lib/labels.ts
 const statuses: Record<CommandeStatut, { label: string; color: string; variant: 'info' | 'warning' | 'primary' | 'success' | 'default' | 'danger' }> = {
-  NEW: { label: 'Nouvelle', color: 'bg-blue-500', variant: 'info' },
-  ORD: { label: 'Commandée', color: 'bg-orange-500', variant: 'warning' },
-  RCV: { label: 'Reçue', color: 'bg-yellow-500', variant: 'warning' },
-  ASM: { label: 'Montage', color: 'bg-purple-500', variant: 'primary' },
-  RDY: { label: 'Prête', color: 'bg-green-500', variant: 'success' },
-  DLV: { label: 'Livrée', color: 'bg-gray-500', variant: 'default' },
-  CAN: { label: 'Annulée', color: 'bg-red-500', variant: 'danger' },
+  NEW: { label: STATUT_COMMANDE.NEW.court, color: 'bg-blue-500', variant: 'warning' },
+  ORD: { label: STATUT_COMMANDE.ORD.court, color: 'bg-orange-500', variant: 'info' },
+  RCV: { label: STATUT_COMMANDE.RCV.court, color: 'bg-yellow-500', variant: 'info' },
+  ASM: { label: STATUT_COMMANDE.ASM.court, color: 'bg-purple-500', variant: 'primary' },
+  RDY: { label: STATUT_COMMANDE.RDY.court, color: 'bg-green-500', variant: 'success' },
+  DLV: { label: STATUT_COMMANDE.DLV.court, color: 'bg-gray-500', variant: 'default' },
+  CAN: { label: STATUT_COMMANDE.CAN.court, color: 'bg-red-500', variant: 'danger' },
 };
 
 const statusOrder: CommandeStatut[] = ['NEW', 'ORD', 'RCV', 'ASM', 'RDY'];
@@ -31,7 +34,7 @@ type OrderWithClient = Commande & { clientNom: string; clientTel: string };
 export function CommandesPage() {
   const orders = useAppDataStore((state) => state.commandes);
   const clients = useAppDataStore((state) => state.clients);
-  const updateCommande = useAppDataStore((state) => state.updateCommande);
+  const changerStatutCommande = useAppDataStore((state) => state.changerStatutCommande);
   const [searchQuery, setSearchQuery] = useState('');
   const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban');
   const [selectedStatus, setSelectedStatus] = useState<CommandeStatut | null>(null);
@@ -66,7 +69,8 @@ export function CommandesPage() {
   const handleStatusChange = () => {
     if (!selectedOrder || !newStatus) return;
 
-    updateCommande(selectedOrder.id, { statut: newStatus });
+    // Annuler remet le stock: c'est le store qui s'en charge.
+    changerStatutCommande(selectedOrder.id, newStatus);
     setShowStatusModal(false);
     setSelectedOrder(null);
     setNewStatus('');
@@ -92,10 +96,13 @@ export function CommandesPage() {
             Suivez et gérez vos commandes
           </p>
         </div>
-        <Button>
-          <Plus className="mr-2 h-4 w-4" />
-          Nouvelle commande
-        </Button>
+        {/* Une commande naît d'une vente: on renvoie au comptoir. */}
+        <Link to="/vente">
+          <Button>
+            <Plus className="mr-2 h-4 w-4" />
+            Nouvelle vente
+          </Button>
+        </Link>
       </div>
 
       {/* Filters & View Toggle */}
@@ -277,13 +284,11 @@ export function CommandesPage() {
                       </p>
                     </div>
                     <div className="flex items-center gap-2">
-                      <Button 
-                        variant="ghost" 
-                        size="sm"
-                        title="Voir détails"
-                      >
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <Link to={`/clients/${order.client_id}`}>
+                        <Button variant="ghost" size="sm" title="Ouvrir la fiche client">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Link>
                       {statusTransitions[order.statut].length > 0 && (
                         <Button 
                           variant="outline" 

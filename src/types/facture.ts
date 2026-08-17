@@ -13,6 +13,7 @@ export interface Facture {
   remise_montant?: number;
   total_ttc: number;
   montant_paye: number;
+  lignes?: FactureLigne[];
   mode_paiement?: PaymentMethod;
   notes?: string;
   statut: FactureStatut;

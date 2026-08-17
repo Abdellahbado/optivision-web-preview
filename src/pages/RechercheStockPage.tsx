@@ -176,7 +176,7 @@ export function RechercheStockPage() {
           <Button variant="outline" onClick={clearSearch}>
             Effacer
           </Button>
-          <Link to="/accueil-client">
+          <Link to="/vente">
             <Button>
               Vente client
               <ArrowRight className="h-4 w-4 ml-2" />
@@ -347,7 +347,7 @@ export function RechercheStockPage() {
               </>
             )}
             {canFulfillBothEyes && (
-              <Link to="/accueil-client" className="ml-auto">
+              <Link to="/vente" className="ml-auto">
                 <Button>
                   Continuer avec client
                   <ArrowRight className="h-4 w-4 ml-2" />
