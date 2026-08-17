@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Le dossier src/lib/data est du code source (un ignore global **/data/ le masquait).
+!src/lib/data/
+!src/lib/data/**
